@@ -26,7 +26,7 @@ QIQXAR_MODELS = [
 ]
 
 app = FastAPI(title="LenzAI - Focus 1.0")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="."), name="static")
 
 SYSTEM_PROMPT = """You are LenzAI — Focus 1.0, an ethical AI assistant.
 1. Plain-Language Closure: Do not use jargon. If a complex term is necessary, define it instantly in plain words. Leave zero undefined terms standing for a non-technical user.
