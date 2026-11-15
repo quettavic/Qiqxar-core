@@ -13,14 +13,12 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-ROUTER_MODEL = "openai/gpt-oss-20b"
-SYNTH_MODEL = "openai/gpt-oss-120b"
+ROUTER_MODEL = "llama-3.1-8b-instant"
+SYNTH_MODEL = "llama-3.3-70b-versatile"
 QIQXAR_MODELS = [
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
-    "qwen/qwen3.6-27b",
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "gemma2-9b-it",
 ]
 
 app = FastAPI(title="LenzAI - Focus 1.0")
@@ -117,6 +115,14 @@ async def home():
                     })
                 });
 
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    document.getElementById(typingId)?.remove();
+                    appendMessage('bot', `<strong>Server Error (${response.status}):</strong> ${errData.detail || 'Check your GROQ_API_KEY.'}`);
+                    sendBtn.disabled = false;
+                    return;
+                }
+
                 document.getElementById(typingId).remove();
                 const botMsgId = 'bot-' + Date.now();
                 appendMessage('bot', '', botMsgId);
@@ -130,10 +136,10 @@ async def home():
                     const { done, value } = await reader.read();
                     if (done) break;
                     const chunk = decoder.decode(value);
-                    const lines = chunk.split('\\n');
+                    const lines = chunk.split('\n');
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
-                            const dataStr = line.slice(6);
+                            const dataStr = line.slice(6).trim();
                             if (dataStr === '[DONE]') break;
                             try {
                                 const data = JSON.parse(dataStr);
@@ -142,15 +148,17 @@ async def home():
                                     botDiv.innerHTML = `<strong>LenzAI:</strong> ${fullText}`;
                                     chatBox.scrollTop = chatBox.scrollHeight;
                                 } else if (data.error) {
-                                    botDiv.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                                    botDiv.innerHTML = `<strong>Error:</strong> ${data.error} (${data.detail || ''})`;
                                 }
                             } catch (e) {}
                         }
                     }
                 }
                 
-                history.push({ role: "user", content: text });
-                history.push({ role: "assistant", content: fullText });
+                if (fullText) {
+                    history.push({ role: "user", content: text });
+                    history.push({ role: "assistant", content: fullText });
+                }
 
             } catch (error) {
                 document.getElementById(typingId)?.remove();
@@ -176,11 +184,11 @@ async def home():
 @app.post("/api/chat")
 async def chat(payload: ChatRequest):
     if not API_KEY:
-        raise HTTPException(status_code=503, detail="API key missing")
+        raise HTTPException(status_code=503, detail="GROQ_API_KEY is missing on the server.")
 
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT + "\\n\\n" + DEPTH_GUIDANCE[payload.depth]}]
+    messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\n" + DEPTH_GUIDANCE[payload.depth]}]
     for msg in payload.history:
         messages.append({"role": msg.role, "content": msg.content})
     messages.append({"role": "user", "content": payload.question})
@@ -230,11 +238,11 @@ async def chat(payload: ChatRequest):
 
             if valid_responses:
                 synthesis_prompt = (
-                    f'You are the Synthesizer. Cross-check these models for the question: "{payload.question}"\\n\\n'
-                    + "\\n".join(
-                        f"--- Model {i+1} ---\\n{r}" for i, r in enumerate(valid_responses)
+                    f'You are the Synthesizer. Cross-check these models for the question: "{payload.question}"\n\n'
+                    + "\n".join(
+                        f"--- Model {i+1} ---\n{r}" for i, r in enumerate(valid_responses)
                     )
-                    + "\\n\\nCRITICAL: If the models disagree on technical facts, flag the conflict. "
+                    + "\n\nCRITICAL: If the models disagree on technical facts, flag the conflict. "
                       "If you detect structural errors, correct them. Follow the Plain-Language rule strictly."
                 )
                 final_messages = [
@@ -254,25 +262,25 @@ async def chat(payload: ChatRequest):
                 async with client.stream("POST", GROQ_URL, headers=headers, json=request_body) as upstream:
                     if upstream.status_code >= 400:
                         body = (await upstream.aread()).decode(errors="ignore")[:500]
-                        yield f"data: {json.dumps({'error': f'HTTP {upstream.status_code}', 'detail': body})}\\n\\n".encode()
+                        yield f"data: {json.dumps({'error': f'HTTP {upstream.status_code}', 'detail': body})}\n\n".encode()
                         return
 
                     async for line in upstream.aiter_lines():
                         if line.startswith("data:"):
                             value = line[5:].strip()
                             if value == "[DONE]":
-                                yield b"data: [DONE]\\n\\n"
+                                yield b"data: [DONE]\n\n"
                                 return
                             try:
                                 packet = json.loads(value)
                                 content = packet["choices"][0]["delta"].get("content", "")
                                 if content:
-                                    yield f"data: {json.dumps({'text': content})}\\n\\n".encode()
+                                    yield f"data: {json.dumps({'text': content})}\n\n".encode()
                             except Exception:
                                 pass
         except Exception as e:
             logger.error(f"Stream Error: {e}")
-            yield f"data: {json.dumps({'error': 'Connection failed', 'detail': str(e)})}\\n\\n".encode()
+            yield f"data: {json.dumps({'error': 'Connection failed', 'detail': str(e)})}\n\n".encode()
 
     return StreamingResponse(
         stream_events(),
