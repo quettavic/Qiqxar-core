@@ -1,3 +1,4 @@
+
 import json
 import os
 import asyncio
@@ -13,8 +14,8 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-# Universally available, rock-solid Groq production model
-MODEL_NAME = "llama3-8b-8192"
+# Updated Groq model
+MODEL_NAME = "openai/gpt-oss-20b"
 
 app = FastAPI(title="Qiqxar — No noise. Just information.")
 
