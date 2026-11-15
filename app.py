@@ -13,6 +13,7 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
+# Real, active Groq model IDs that work immediately
 ROUTER_MODEL = "llama-3.1-8b-instant"
 SYNTH_MODEL = "llama-3.3-70b-versatile"
 QIQXAR_MODELS = [
@@ -21,13 +22,13 @@ QIQXAR_MODELS = [
     "gemma2-9b-it",
 ]
 
-app = FastAPI(title="LenzAI - Focus 1.0")
+app = FastAPI(title="Qiqxar - Focus 1.0")
 
-SYSTEM_PROMPT = """You are LenzAI — Focus 1.0, an ethical AI assistant.
+SYSTEM_PROMPT = """You are Qiqxar, an ethical AI assistant.
 1. Plain-Language Closure: Do not use jargon. If a complex term is necessary, define it instantly in plain words. Leave zero undefined terms standing for a non-technical user.
 2. Epistemological Integrity: Do not claim absolute truth. Report facts, rate confidence, and surface conflicts. Never hallucinate.
 3. Zero-Tolerance for Malice: Refuse hate speech, exploitation, or predatory advice.
-4. Family-First: Keep answers concise, BUT if the question requires technical steps (like carpentry, wiring, or medical instructions), you MUST provide the complete, accurate steps. Do not skip steps just to be brief.
+4. Family-First: Keep answers concise, BUT if the question requires technical steps, you MUST provide the complete, accurate steps. Do not skip steps just to be brief.
 5. Adaptive Depth: If the question is highly technical, explain it clearly and thoroughly. If it is simple, keep it brief.
 
 CRITICAL: If you are not 100% certain of a technical measurement or structural rule, say "I do not know, please consult a professional."
@@ -56,7 +57,7 @@ async def home():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LenzAI - Focus 1.0</title>
+    <title>Qiqxar - Focus 1.0</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
         #chat-box { flex: 1; background: #1e293b; border-radius: 12px; padding: 20px; overflow-y: auto; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
@@ -72,7 +73,7 @@ async def home():
 </head>
 <body>
     <div id="chat-box">
-        <div class="message bot"><strong>LenzAI:</strong> Hello. I am LenzAI. (Experimental, AS-IS). How can I help you today?</div>
+        <div class="message bot"><strong>Qiqxar:</strong> Hello. I am Qiqxar. How can I help you today?</div>
     </div>
     <div id="controls">
         <select id="depth-select">
@@ -80,7 +81,7 @@ async def home():
             <option value="standard">Standard</option>
             <option value="deep">Deep</option>
         </select>
-        <input type="text" id="user-input" placeholder="Ask LenzAI anything..." onkeypress="handleKeyPress(event)">
+        <input type="text" id="user-input" placeholder="Ask Qiqxar anything..." onkeypress="handleKeyPress(event)">
         <button id="send-btn" onclick="sendMessage()">Send</button>
     </div>
 
@@ -136,7 +137,7 @@ async def home():
                     const { done, value } = await reader.read();
                     if (done) break;
                     const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
+                    const lines = chunk.split('\\n');
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
                             const dataStr = line.slice(6).trim();
@@ -145,7 +146,7 @@ async def home():
                                 const data = JSON.parse(dataStr);
                                 if (data.text) {
                                     fullText += data.text;
-                                    botDiv.innerHTML = `<strong>LenzAI:</strong> ${fullText}`;
+                                    botDiv.innerHTML = `<strong>Qiqxar:</strong> ${fullText}`;
                                     chatBox.scrollTop = chatBox.scrollHeight;
                                 } else if (data.error) {
                                     botDiv.innerHTML = `<strong>Error:</strong> ${data.error} (${data.detail || ''})`;
@@ -172,7 +173,7 @@ async def home():
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${sender}`;
             if (id) msgDiv.id = id;
-            msgDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'LenzAI'}:</strong> ${text}`;
+            msgDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'Qiqxar'}:</strong> ${text}`;
             chatBox.appendChild(msgDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
@@ -184,7 +185,7 @@ async def home():
 @app.post("/api/chat")
 async def chat(payload: ChatRequest):
     if not API_KEY:
-        raise HTTPException(status_code=503, detail="GROQ_API_KEY is missing on the server.")
+        raise HTTPException(status_code=503, detail="GROQ_API_KEY is missing on the server environment.")
 
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
 
@@ -194,7 +195,6 @@ async def chat(payload: ChatRequest):
     messages.append({"role": "user", "content": payload.question})
 
     async def stream_events() -> AsyncIterator[bytes]:
-
         route_decision = "COMPLEX"
         routing_prompt = (
             f"Is this a simple proven fact OR does it require deep technical cross-checking? "
@@ -208,7 +208,8 @@ async def chat(payload: ChatRequest):
                     "temperature": 0.0,
                 })
                 if route_resp.status_code == 200:
-                    if "SIMPLE" in route_resp.json()["choices"][0]["message"]["content"].upper():
+                    content = route_resp.json()["choices"][0]["message"]["content"]
+                    if "SIMPLE" in content.upper():
                         route_decision = "SIMPLE"
                 else:
                     logger.warning(f"Router HTTP {route_resp.status_code}: {route_resp.text[:300]}")
