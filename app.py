@@ -55,96 +55,480 @@ async def home():
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qiqxar - Focus 1.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Qiqxar</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
             --bg-main: #131314;
-            --bg-chat: #1e1f20;
-            --bg-input: #282a2c;
-            --text-main: #e3e3e3;
-            --text-muted: #8e918f;
-            --accent: #a8c7fa;
-            --user-bubble: #004a77;
-            --bot-bubble: #1e1f20;
-            --border: #333537;
+            --bg-surface: #1e1f20;
+            --bg-surface-hover: #282a2c;
+            --user-pill: #282a2c;
+            --text-primary: #e3e3e3;
+            --text-secondary: #9aa0a6;
+            --accent-blue: #a8c7fa;
+            --accent-gradient: linear-gradient(135deg, #4285f4, #9b72cb, #d96570);
+            --border-subtle: rgba(255, 255, 255, 0.08);
         }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg-main); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg-main); }
-        .logo-area { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; color: var(--text-main); }
-        .logo-badge { background: linear-gradient(135deg, #4285f4, #9b72cb); color: white; font-size: 12px; padding: 2px 8px; border-radius: 12px; }
-        
-        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
-        .chat-width-limiter { width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 24px; }
-        
-        .message-row { display: flex; gap: 16px; width: 100%; }
-        .message-row.user { justify-content: flex-end; }
-        .message-row.bot { justify-content: flex-start; }
-        
-        .avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; flex-shrink: 0; }
-        .user-avatar { background: #005fb8; color: white; }
-        .bot-avatar { background: #2d3748; color: #a8c7fa; border: 1px solid var(--border); }
-        
-        .message-bubble { max-width: 75%; padding: 14px 18px; border-radius: 16px; line-height: 1.6; font-size: 15px; word-break: break-word; white-space: pre-wrap; }
-        .message-row.user .message-bubble { background: var(--user-bubble); color: white; border-top-right-radius: 4px; }
-        .message-row.bot .message-bubble { background: var(--bot-bubble); color: var(--text-main); border: 1px solid var(--border); border-top-left-radius: 4px; }
-        
-        #input-area { padding: 16px 24px 24px 24px; background: var(--bg-main); display: flex; justify-content: center; }
-        .input-wrapper { width: 100%; max-width: 800px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 24px; padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; }
-        
-        #user-input { width: 100%; background: transparent; border: none; color: var(--text-main); font-size: 15px; outline: none; resize: none; max-height: 150px; min-height: 24px; font-family: inherit; }
-        
-        .input-controls { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; }
-        select { background: transparent; border: none; color: var(--text-muted); font-size: 13px; outline: none; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
-        
-        #send-btn { background: var(--accent); color: #111; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
-        #send-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Clean Minimalist Top Bar */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            background: var(--bg-main);
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 19px;
+            font-weight: 500;
+            letter-spacing: -0.2px;
+            color: var(--text-primary);
+        }
+
+        .brand-tag {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-surface);
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        select, .icon-btn {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+            transition: background 0.2s;
+        }
+
+        select:hover, .icon-btn:hover {
+            background: var(--bg-surface-hover);
+        }
+
+        /* Scrollable Canvas */
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px 32px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .canvas-column {
+            width: 100%;
+            max-width: 760px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        /* Welcome Greeting Screen */
+        #welcome-screen {
+            margin-top: 12vh;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .greeting-title {
+            font-size: 36px;
+            font-weight: 500;
+            line-height: 1.2;
+            letter-spacing: -0.5px;
+        }
+
+        .gradient-text {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .greeting-sub {
+            font-size: 22px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .suggestion-chip {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            text-align: left;
+        }
+
+        .suggestion-chip:hover {
+            background: var(--bg-surface-hover);
+        }
+
+        /* User Message (Soft Pill on Right) */
+        .user-row {
+            display: flex;
+            justify-content: flex-end;
+            width: 100%;
+        }
+
+        .user-bubble {
+            background: var(--user-pill);
+            color: var(--text-primary);
+            padding: 12px 18px;
+            border-radius: 22px;
+            border-bottom-right-radius: 6px;
+            max-width: 80%;
+            font-size: 16px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* AI Message (Borderless, Clean Typography on Left) */
+        .bot-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            width: 100%;
+        }
+
+        .sparkle-icon {
+            width: 26px;
+            height: 26px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bot-content {
+            flex: 1;
+            min-width: 0;
+            font-size: 16px;
+            line-height: 1.65;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        /* Markdown Typography Styling inside AI Responses */
+        .bot-content p { margin-bottom: 14px; }
+        .bot-content p:last-child { margin-bottom: 0; }
+        .bot-content strong { color: #ffffff; font-weight: 600; }
+        .bot-content ul, .bot-content ol { margin: 10px 0 14px 22px; }
+        .bot-content li { margin-bottom: 6px; }
+        .bot-content h1, .bot-content h2, .bot-content h3 {
+            margin: 18px 0 10px 0;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        .bot-content code {
+            background: var(--bg-surface);
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 14px;
+            color: var(--accent-blue);
+        }
+        .bot-content pre {
+            background: #18191a;
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 14px;
+            overflow-x: auto;
+            margin: 14px 0;
+        }
+        .bot-content pre code {
+            background: transparent;
+            padding: 0;
+            color: #e3e3e3;
+        }
+
+        /* Thinking Pulse */
+        .thinking-dots {
+            color: var(--text-secondary);
+            font-style: italic;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        /* Floating Pill Input Box at Bottom */
+        #input-dock {
+            padding: 10px 16px 20px 16px;
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .pill-box {
+            width: 100%;
+            max-width: 760px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 28px;
+            padding: 8px 12px 8px 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .pill-box:focus-within {
+            background: var(--bg-surface-hover);
+            border-color: rgba(168, 199, 250, 0.4);
+        }
+
+        #user-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 16px;
+            line-height: 1.5;
+            max-height: 160px;
+            min-height: 24px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            padding: 6px 0;
+        }
+
+        #user-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* Mic & Send Buttons */
+        .action-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        #mic-btn {
+            background: transparent;
+            color: var(--text-primary);
+        }
+
+        #mic-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        #mic-btn.listening {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            animation: micPulse 1.2s infinite;
+        }
+
+        @keyframes micPulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+            70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        #send-btn {
+            background: var(--accent-blue);
+            color: #131314;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #send-btn:disabled {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text-secondary);
+            cursor: default;
+        }
+
+        .disclaimer {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <header>
-        <div class="logo-area">
+        <div class="brand">
             <span>Qiqxar</span>
-            <span class="logo-badge">Focus 1.0</span>
+            <span class="brand-tag">Focus 1.0</span>
         </div>
-        <select id="depth-select">
-            <option value="brief">Depth: Brief</option>
-            <option value="standard" selected>Depth: Standard</option>
-            <option value="deep">Depth: Deep</option>
-        </select>
+        <div class="header-actions">
+            <select id="depth-select" title="Response Depth">
+                <option value="brief">Brief</option>
+                <option value="standard" selected>Standard</option>
+                <option value="deep">Deep</option>
+            </select>
+            <button class="icon-btn" onclick="resetChat()" title="Start a new chat">+ New</button>
+        </div>
     </header>
 
     <div id="chat-container">
-        <div class="chat-width-limiter" id="chat-box">
-            <div class="message-row bot">
-                <div class="avatar bot-avatar">Q</div>
-                <div class="message-bubble">Hello. I am Qiqxar. How can I help you today?</div>
+        <div class="canvas-column" id="chat-box">
+            <div id="welcome-screen">
+                <div>
+                    <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
+                    <div class="greeting-sub">How can Qiqxar help you today?</div>
+                </div>
+                <div class="chip-row">
+                    <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
+                    <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
+                    <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="input-area">
-        <div class="input-wrapper">
-            <textarea id="user-input" placeholder="Ask Qiqxar anything..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
-            <div class="input-controls">
-                <span style="font-size: 12px; color: var(--text-muted);">Multi-LLM Consensus Active</span>
-                <button id="send-btn" onclick="sendMessage()">↑</button>
-            </div>
+    <div id="input-dock">
+        <div class="pill-box">
+            <textarea id="user-input" placeholder="Ask Qiqxar..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+            <button id="mic-btn" class="action-circle" onclick="toggleMic()" title="Voice Input">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" x2="12" y1="19" y2="22"/>
+                </svg>
+            </button>
+            <button id="send-btn" class="action-circle" onclick="sendMessage()" title="Send">↑</button>
         </div>
+        <div class="disclaimer">Qiqxar cross-checks multiple AI models. Verify critical measurements and medical facts.</div>
     </div>
 
     <script>
         const chatBox = document.getElementById('chat-box');
+        const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
+        const micBtn = document.getElementById('mic-btn');
         const depthSelect = document.getElementById('depth-select');
         let history = [];
 
+        const SPARKLE_SVG = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C12.3 7.2 16.8 11.7 22 12C16.8 12.3 12.3 16.8 12 22C11.7 16.8 7.2 12.3 2 12C7.2 11.7 11.7 7.2 12 2Z" fill="url(#qiqxarGrad)"/>
+                <defs>
+                    <linearGradient id="qiqxarGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#4285F4"/>
+                        <stop offset="0.5" stop-color="#9B72CB"/>
+                        <stop offset="1" stop-color="#D96570"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        `;
+
+        // --- Voice Recognition Setup (iOS Safari / Chrome compatible) ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let isListening = false;
+        let textBeforeSpeech = "";
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                textBeforeSpeech = userInput.value.trim();
+                micBtn.classList.add('listening');
+                userInput.placeholder = "Listening...";
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = "";
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                userInput.value = (textBeforeSpeech ? textBeforeSpeech + " " : "") + transcript;
+                userInput.style.height = 'auto';
+                userInput.style.height = Math.min(userInput.scrollHeight, 160) + 'px';
+            };
+
+            recognition.onerror = (event) => {
+                stopListeningUI();
+                if (event.error === 'not-allowed') {
+                    alert("Microphone permission was blocked. Please allow microphone access in your browser settings.");
+                }
+            };
+
+            recognition.onend = () => {
+                stopListeningUI();
+            };
+        }
+
+        function stopListeningUI() {
+            isListening = false;
+            micBtn.classList.remove('listening');
+            userInput.placeholder = "Ask Qiqxar...";
+        }
+
+        function toggleMic() {
+            if (!recognition) {
+                alert("Voice input is not supported in this browser. Try Safari or Chrome.");
+                return;
+            }
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    recognition.stop();
+                }
+            }
+        }
+        // -------------------------------------------------------------
+
         userInput.addEventListener('input', function() {
             this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
+            this.style.height = Math.min(this.scrollHeight, 160) + 'px';
         });
 
         function handleKeyDown(e) {
@@ -154,51 +538,82 @@ async def home():
             }
         }
 
+        function useChip(text) {
+            userInput.value = text;
+            sendMessage();
+        }
+
+        function resetChat() {
+            history = [];
+            chatBox.innerHTML = `
+                <div id="welcome-screen">
+                    <div>
+                        <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
+                        <div class="greeting-sub">How can Qiqxar help you today?</div>
+                    </div>
+                    <div class="chip-row">
+                        <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
+                        <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
+                        <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMarkdown(text) {
+            if (typeof marked !== 'undefined') {
+                return marked.parse(text);
+            }
+            return text.replace(/\\n/g, '<br>');
+        }
+
         async function sendMessage() {
+            if (isListening && recognition) recognition.stop();
+
             const text = userInput.value.trim();
             if (!text) return;
-            
-            appendMessage('user', text);
+
+            const welcome = document.getElementById('welcome-screen');
+            if (welcome) welcome.remove();
+
+            appendUserMessage(text);
             userInput.value = '';
             userInput.style.height = 'auto';
             sendBtn.disabled = true;
 
-            const typingId = 'typing-' + Date.now();
-            appendMessage('bot', 'Thinking...', typingId, true);
+            const botId = 'bot-' + Date.now();
+            const botContentDiv = appendBotMessage('<span class="thinking-dots">Cross-checking models...</span>', botId);
 
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        question: text, 
+                    body: JSON.stringify({
+                        question: text,
                         depth: depthSelect.value,
-                        history: history 
+                        history: history
                     })
                 });
 
                 if (!response.ok) {
                     const errData = await response.json().catch(() => ({}));
-                    document.getElementById(typingId)?.remove();
-                    appendMessage('bot', `Server Error (${response.status}): ${errData.detail || 'Check API configuration.'}`);
+                    botContentDiv.innerHTML = `<p><strong>Server Error (${response.status}):</strong> ${errData.detail || 'Check server logs.'}</p>`;
                     sendBtn.disabled = false;
                     return;
                 }
 
-                document.getElementById(typingId).remove();
-                const botMsgId = 'bot-' + Date.now();
-                appendMessage('bot', '', botMsgId);
-                const botBubble = document.getElementById(botMsgId).querySelector('.message-bubble');
-
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullText = "";
+                let buffer = "";
 
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\\n');
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
                             const dataStr = line.slice(6).trim();
@@ -207,59 +622,58 @@ async def home():
                                 const data = JSON.parse(dataStr);
                                 if (data.text) {
                                     fullText += data.text;
-                                    botBubble.textContent = fullText;
-                                    scrollToBottom();
+                                    botContentDiv.innerHTML = renderMarkdown(fullText);
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                } else if (data.error) {
+                                    botContentDiv.innerHTML = `<p><strong>Error:</strong> ${data.error} (${data.detail || ''})</p>`;
                                 }
                             } catch (e) {}
                         }
                     }
                 }
-                
+
                 if (fullText) {
                     history.push({ role: "user", content: text });
                     history.push({ role: "assistant", content: fullText });
                 }
 
             } catch (error) {
-                document.getElementById(typingId)?.remove();
-                appendMessage('bot', 'System Error: Could not reach the server.');
+                botContentDiv.innerHTML = `<p><strong>Connection Error:</strong> Could not reach the server.</p>`;
             }
+
             sendBtn.disabled = false;
             userInput.focus();
         }
 
-        function appendMessage(sender, text, id = null, isHtml = false) {
+        function appendUserMessage(text) {
             const row = document.createElement('div');
-            row.className = `message-row ${sender}`;
-            if (id) row.id = id;
-
-            const avatar = document.createElement('div');
-            avatar.className = `avatar ${sender}-avatar`;
-            avatar.textContent = sender === 'user' ? 'U' : 'Q';
-
+            row.className = 'user-row';
             const bubble = document.createElement('div');
-            bubble.className = 'message-bubble';
-            if (isHtml) {
-                bubble.innerHTML = `<em>${text}</em>`;
-            } else {
-                bubble.textContent = text;
-            }
-
-            if (sender === 'user') {
-                row.appendChild(bubble);
-                row.appendChild(avatar);
-            } else {
-                row.appendChild(avatar);
-                row.appendChild(bubble);
-            }
-
+            bubble.className = 'user-bubble';
+            bubble.textContent = text;
+            row.appendChild(bubble);
             chatBox.appendChild(row);
-            scrollToBottom();
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        function scrollToBottom() {
-            const container = document.getElementById('chat-container');
-            container.scrollTop = container.scrollHeight;
+        function appendBotMessage(initialHtml, id) {
+            const row = document.createElement('div');
+            row.className = 'bot-row';
+            row.id = id;
+
+            const icon = document.createElement('div');
+            icon.className = 'sparkle-icon';
+            icon.innerHTML = SPARKLE_SVG;
+
+            const content = document.createElement('div');
+            content.className = 'bot-content';
+            content.innerHTML = initialHtml;
+
+            row.appendChild(icon);
+            row.appendChild(content);
+            chatBox.appendChild(row);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return content;
         }
     </script>
 </body>
