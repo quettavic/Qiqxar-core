@@ -3,31 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LenzAI - Focus 1.0</title>
+    <title>Qiqxar — No noise. Just information.</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
-        #chat-box { flex: 1; background: #1e293b; border-radius: 12px; padding: 20px; overflow-y: auto; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-        .message { margin-bottom: 15px; padding: 12px 16px; border-radius: 18px; max-width: 85%; line-height: 1.5; font-size: 16px; white-space: pre-wrap; }
-        .user { background: #0284c7; color: white; align-self: flex-end; margin-left: auto; border-bottom-right-radius: 4px; }
-        .bot { background: #334155; color: #f8fafc; align-self: flex-start; border-bottom-left-radius: 4px; }
-        #controls { display: flex; gap: 10px; align-items: center; }
-        #user-input { flex: 1; padding: 15px; border: 1px solid #475569; border-radius: 10px; font-size: 16px; background: #1e293b; color: white; outline: none; }
-        button { padding: 15px 25px; background: #0ea5e9; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
-        button:disabled { background: #475569; }
-        select { padding: 12px; border-radius: 10px; border: 1px solid #475569; background: #1e293b; color: white; font-size: 14px; }
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: #161b22;
+            --border-color: #30363d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --accent-glow: #58a6ff;
+            --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.3rem;
+            color: white;
+            box-shadow: 0 0 15px rgba(88, 166, 255, 0.3);
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .tagline {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        #chat-box {
+            flex: 1;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 85%;
+            line-height: 1.5;
+            font-size: 16px;
+            white-space: pre-wrap;
+        }
+
+        .user {
+            background: #0284c7;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot {
+            background: #334155;
+            color: #f8fafc;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        #controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #475569;
+            border-radius: 10px;
+            font-size: 16px;
+            background: #0d1117;
+            color: white;
+            outline: none;
+        }
+
+        #user-input:focus {
+            border-color: var(--accent-glow);
+        }
+
+        button {
+            padding: 12px 20px;
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #475569; cursor: not-allowed; }
+
+        select {
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #475569;
+            background: #0d1117;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .icon-btn {
+            background: #1e293b;
+            border: 1px solid #475569;
+            color: var(--text-secondary);
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            border-color: var(--accent-glow);
+            color: white;
+        }
+
+        .icon-btn.recording {
+            border-color: #ef4444;
+            color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.15);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
+    <header>
+        <div class="logo-area">
+            <div class="logo-icon">Q</div>
+            <div>
+                <h1>Qiqxar</h1>
+                <div class="tagline">No other way. Just information.</div>
+            </div>
+        </div>
+    </header>
+
     <div id="chat-box">
-        <div class="message bot"><strong>LenzAI:</strong> Hello. I am LenzAI. (Experimental, AS-IS). How can I help you today?</div>
+        <div class="message bot"><strong>Qiqxar:</strong> System online. How can I help you analyze your data today?</div>
     </div>
+
     <div id="controls">
         <select id="depth-select">
             <option value="brief">Brief</option>
-            <option value="standard">Standard</option>
+            <option value="standard" selected>Standard</option>
             <option value="deep">Deep</option>
         </select>
-        <input type="text" id="user-input" placeholder="Ask LenzAI anything..." onkeypress="handleKeyPress(event)">
+        
+        <!-- Voice Input Button -->
+        <button id="micBtn" class="icon-btn" onclick="toggleMic()" title="Voice Command">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+        </button>
+
+        <input type="text" id="user-input" placeholder="Ask Qiqxar anything or use mic..." onkeypress="handleKeyPress(event)">
         <button id="send-btn" onclick="sendMessage()">Send</button>
     </div>
 
@@ -36,11 +234,63 @@
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const depthSelect = document.getElementById('depth-select');
+        const micBtn = document.getElementById('micBtn');
         let history = [];
+        let recognition = null;
+        let isRecording = false;
 
         function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
 
+        function toggleMic() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert("Speech recognition is not supported on this browser.");
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = function() {
+                isRecording = true;
+                micBtn.classList.add('recording');
+            };
+
+            recognition.onresult = function(event) {
+                const speechResult = event.results[0][0].transcript;
+                userInput.value = speechResult;
+                sendMessage(); // Auto-sends once speech is captured
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Speech recognition error:", event.error);
+                stopMicState();
+            };
+
+            recognition.onend = function() {
+                stopMicState();
+            };
+
+            recognition.start();
+        }
+
+        function stopMicState() {
+            isRecording = false;
+            micBtn.classList.remove('recording');
+        }
+
         async function sendMessage() {
+            if (isRecording && recognition) {
+                recognition.stop();
+            }
+
             const text = userInput.value.trim();
             if (!text) return;
             
@@ -62,7 +312,7 @@
                     })
                 });
 
-                document.getElementById(typingId).remove();
+                document.getElementById(typingId)?.remove();
                 const botMsgId = 'bot-' + Date.now();
                 appendMessage('bot', '', botMsgId);
                 const botDiv = document.getElementById(botMsgId);
@@ -84,7 +334,7 @@
                                 const data = JSON.parse(dataStr);
                                 if (data.text) {
                                     fullText += data.text;
-                                    botDiv.innerHTML = `<strong>LenzAI:</strong> ${fullText}`;
+                                    botDiv.innerHTML = `<strong>Qiqxar:</strong> ${fullText}`;
                                     chatBox.scrollTop = chatBox.scrollHeight;
                                 } else if (data.error) {
                                     botDiv.innerHTML = `<strong>Error:</strong> ${data.error}`;
@@ -109,7 +359,7 @@
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${sender}`;
             if (id) msgDiv.id = id;
-            msgDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'LenzAI'}:</strong> ${text}`;
+            msgDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'Qiqxar'}</strong> ${text}`;
             chatBox.appendChild(msgDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
