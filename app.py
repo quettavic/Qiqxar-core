@@ -13,11 +13,10 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-# 100% universally accessible Groq model
-ROUTER_MODEL = "gemma2-9b-it"
-SYNTH_MODEL = "gemma2-9b-it"
+# 100% verified active self-serve Groq production model
+MODEL_NAME = "openai/gpt-oss-20b"
 QIQXAR_MODELS = [
-    "gemma2-9b-it",
+    "openai/gpt-oss-20b",
 ]
 
 app = FastAPI(title="Qiqxar — No noise. Just information.")
@@ -299,4 +298,404 @@ async def home():
 
         .pill-box:focus-within {
             background: var(--bg-surface-hover);
-            border-color:
+            border-color: rgba(168, 199, 250, 0.4);
+        }
+
+        #user-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 16px;
+            line-height: 1.5;
+            max-height: 160px;
+            min-height: 24px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            padding: 6px 0;
+        }
+
+        #user-input::placeholder { color: var(--text-secondary); }
+
+        .action-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        #mic-btn { background: transparent; color: var(--text-primary); }
+        #mic-btn:hover { background: rgba(255, 255, 255, 0.08); }
+        #mic-btn.recording {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            animation: pulse 1.5s infinite;
+        }
+
+        #send-btn {
+            background: var(--accent-blue);
+            color: #131314;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #send-btn:disabled {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text-secondary);
+        }
+
+        .disclaimer {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <span>Qiqxar</span>
+            <span class="brand-tag">Focus 1.0</span>
+        </div>
+        <div class="header-actions">
+            <button class="icon-btn" onclick="exportChat()" title="Download Chat Transcript">📥 Download Chat</button>
+            <button class="icon-btn" onclick="resetChat()" title="Start a new chat">+ New</button>
+        </div>
+    </header>
+
+    <div id="chat-container">
+        <div class="canvas-column" id="chat-box">
+            <div id="welcome-screen">
+                <div>
+                    <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
+                    <div class="greeting-sub">How can Qiqxar help you today?</div>
+                </div>
+                <div class="chip-row">
+                    <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
+                    <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
+                    <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="input-dock">
+        <div class="pill-box">
+            <textarea id="user-input" placeholder="Ask Qiqxar..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+            <button id="mic-btn" class="action-circle" onclick="toggleMic()" title="Voice Command">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" x2="12" y1="19" y2="22"/>
+                </svg>
+            </button>
+            <button id="send-btn" class="action-circle" onclick="sendMessage()" title="Send">↑</button>
+        </div>
+        <div class="disclaimer">Qiqxar can make mistakes. Verify important information.</div>
+    </div>
+
+    <script>
+        const SPARKLE_SVG = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C12.3 7.2 16.8 11.7 22 12C16.8 12.3 12.3 16.8 12 22C11.7 16.8 7.2 12.3 2 12C7.2 11.7 11.7 7.2 12 2Z" fill="url(#qiqxarGrad)"/>
+                <defs>
+                    <linearGradient id="qiqxarGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#4285F4"/>
+                        <stop offset="0.5" stop-color="#9B72CB"/>
+                        <stop offset="1" stop-color="#D96570"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        `;
+
+        let history = [];
+        let recognition = null;
+        let isRecording = false;
+        let shouldAutoSend = false;
+
+        try {
+            const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechAPI) {
+                recognition = new SpeechAPI();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = function() {
+                    isRecording = true;
+                    const mic = document.getElementById('mic-btn');
+                    if (mic) mic.classList.add('recording');
+                    const input = document.getElementById('user-input');
+                    if (input) input.placeholder = "Listening...";
+                };
+
+                recognition.onresult = function(event) {
+                    const speechResult = event.results[0][0].transcript;
+                    const input = document.getElementById('user-input');
+                    if (input) {
+                        input.value = speechResult;
+                        input.style.height = 'auto';
+                        input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+                    }
+                    shouldAutoSend = true;
+                };
+
+                recognition.onend = function() {
+                    stopMicUI();
+                    if (shouldAutoSend && document.getElementById('user-input').value.trim() !== '') {
+                        shouldAutoSend = false;
+                        sendMessage();
+                    }
+                };
+            }
+        } catch (e) {
+            recognition = null;
+        }
+
+        function stopMicUI() {
+            isRecording = false;
+            const mic = document.getElementById('mic-btn');
+            if (mic) mic.classList.remove('recording');
+            const input = document.getElementById('user-input');
+            if (input) input.placeholder = "Ask Qiqxar...";
+        }
+
+        function toggleMic() {
+            if (!recognition) {
+                alert("Speech recognition is not supported on this browser.");
+                return;
+            }
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                shouldAutoSend = false;
+                recognition.start();
+            }
+        }
+
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.id === 'user-input') {
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+            }
+        });
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function useChip(text) {
+            const input = document.getElementById('user-input');
+            if (input) {
+                input.value = text;
+                sendMessage();
+            }
+        }
+
+        function resetChat() {
+            history = [];
+            const chatBox = document.getElementById('chat-box');
+            if (chatBox) {
+                chatBox.innerHTML = `
+                    <div id="welcome-screen">
+                        <div>
+                            <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
+                            <div class="greeting-sub">How can Qiqxar help you today?</div>
+                        </div>
+                        <div class="chip-row">
+                            <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
+                            <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
+                            <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderMarkdown(text) {
+            try {
+                if (typeof marked !== 'undefined' && marked.parse) {
+                    return marked.parse(text);
+                }
+            } catch (e) {}
+            return text;
+        }
+
+        async function sendMessage() {
+            if (isRecording && recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
+
+            const input = document.getElementById('user-input');
+            const sendBtn = document.getElementById('send-btn');
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+
+            if (!input || !sendBtn || !chatBox) return;
+
+            const text = input.value.trim();
+            if (!text) return;
+
+            const welcome = document.getElementById('welcome-screen');
+            if (welcome) welcome.remove();
+
+            appendUserMessage(text);
+            input.value = '';
+            input.style.height = 'auto';
+            sendBtn.disabled = true;
+
+            const botId = 'bot-' + Date.now();
+            const botContentDiv = appendBotMessage('<span class="thinking-dots">Thinking...</span>', botId);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question: text,
+                        history: history
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    botContentDiv.innerHTML = `<p style="color: #f87171;"><strong>Error (${response.status}):</strong> ${errData.detail || 'Server communication failed.'}</p>`;
+                    sendBtn.disabled = false;
+                    input.focus();
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = "";
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6);
+                            if (dataStr === '[DONE]') break;
+                            try {
+                                const data = JSON.parse(dataStr);
+                                if (data.text) {
+                                    fullText += data.text;
+                                    botContentDiv.innerHTML = renderMarkdown(fullText);
+                                    if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+                                } else if (data.error) {
+                                    botContentDiv.innerHTML = `<p style="color: #f87171;"><strong>Error:</strong> ${data.error} - ${data.detail || ''}</p>`;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+
+                if (fullText) {
+                    history.push({ role: "user", content: text });
+                    history.push({ role: "assistant", content: fullText });
+                    attachBotActions(botId, fullText);
+                }
+
+            } catch (error) {
+                botContentDiv.innerHTML = `<p style="color: #f87171;"><strong>Network Error:</strong> Could not reach the server (${error.message}).</p>`;
+            }
+            sendBtn.disabled = false;
+            input.focus();
+        }
+
+        function appendUserMessage(text) {
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatBox) return;
+
+            const row = document.createElement('div');
+            row.className = 'user-row';
+            const bubble = document.createElement('div');
+            bubble.className = 'user-bubble';
+            bubble.textContent = text;
+            row.appendChild(bubble);
+            chatBox.appendChild(row);
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function appendBotMessage(initialHtml, id) {
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatBox) return null;
+
+            const row = document.createElement('div');
+            row.className = 'bot-row';
+            row.id = id;
+
+            const mainDiv = document.createElement('div');
+            mainDiv.className = 'bot-main-content';
+
+            const icon = document.createElement('div');
+            icon.className = 'sparkle-icon';
+            icon.innerHTML = SPARKLE_SVG;
+
+            const content = document.createElement('div');
+            content.className = 'bot-content';
+            content.innerHTML = initialHtml;
+
+            mainDiv.appendChild(icon);
+            mainDiv.appendChild(content);
+            row.appendChild(mainDiv);
+            chatBox.appendChild(row);
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            return content;
+        }
+
+        function attachBotActions(botId, fullText) {
+            const row = document.getElementById(botId);
+            if (!row) return;
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'bot-actions';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'action-icon-btn';
+            copyBtn.innerHTML = '📋 Copy';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(fullText);
+                copyBtn.innerHTML = '✓ Copied';
+                setTimeout(() => copyBtn.innerHTML = '📋 Copy', 2000);
+            };
+
+            const speakBtn = document.createElement('button');
+            speakBtn.className = 'action-icon-btn';
+            speakBtn.innerHTML = '🔊 Speak';
+            speakBtn.onclick = () => {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(fullText);
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    alert('Text-to-speech not supported on this browser.');
+                }
+            };
+
+            const upBtn = document.createElement('button');
+            upBtn.className = 'action-icon-btn';
+            upBtn.innerHTML = '👍';
+            upBtn.onclick = () => {
+                upBtn.classList.toggle('active');
+                downBtn.classList.remove('active');
+            };
+
+            const downBtn =
