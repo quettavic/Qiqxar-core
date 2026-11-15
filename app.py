@@ -13,12 +13,13 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-ROUTER_MODEL = "openai/gpt-oss-20b"
-SYNTH_MODEL = "openai/gpt-oss-120b"
+# Valid Groq production models
+ROUTER_MODEL = "llama-3.1-8b-instant"
+SYNTH_MODEL = "llama-3.3-70b-versatile"
 QIQXAR_MODELS = [
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
-    "qwen/qwen3.8-27b",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "gemma2-9b-it",
 ]
 
 app = FastAPI(title="Qiqxar - Focus 1.0")
@@ -33,19 +34,12 @@ SYSTEM_PROMPT = """You are Qiqxar, an ethical AI assistant.
 CRITICAL: If you are not 100% certain of a technical measurement or structural rule, say "I do not know, please consult a professional."
 """
 
-DEPTH_GUIDANCE = {
-    "brief": "Give a concise answer. BUT, if this is a complex technical task, prioritize accuracy and complete steps over brevity.",
-    "standard": "Give a clear, balanced answer with enough context to understand it.",
-    "deep": "Give a detailed explanation with reasoning, important caveats and useful context."
-}
-
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=12000)
 
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=12000)
-    depth: str = Field(default="brief", pattern="^(brief|standard|deep)$")
     history: list[ChatMessage] = Field(default_factory=list, max_length=20)
 
 @app.get("/", response_class=HTMLResponse)
@@ -123,4 +117,342 @@ async def home():
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                 <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
                 <line x1="12" y1="19" x2="12" y2="23"></line>
-                <line x1="8" y1="23" x2="16" y2
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+        </button>
+
+        <input type="text" id="user-input" placeholder="Ask Qiqxar anything or use mic..." onkeypress="handleKeyPress(event)">
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+
+    <div class="disclaimer">Qiqxar can make mistakes. Verify important information.</div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const micBtn = document.getElementById('micBtn');
+        let history = [];
+        let recognition = null;
+        let isRecording = false;
+        let shouldAutoSend = false;
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+        function toggleMic() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert("Speech recognition is not supported on this browser.");
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            shouldAutoSend = false;
+
+            recognition.onstart = function() {
+                isRecording = true;
+                micBtn.classList.add('recording');
+            };
+
+            recognition.onresult = function(event) {
+                const speechResult = event.results[0][0].transcript;
+                userInput.value = speechResult;
+                shouldAutoSend = true;
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Speech recognition error:", event.error);
+                shouldAutoSend = false;
+                stopMicState();
+            };
+
+            recognition.onend = function() {
+                stopMicState();
+                if (shouldAutoSend && userInput.value.trim() !== '') {
+                    shouldAutoSend = false;
+                    sendMessage();
+                }
+            };
+
+            recognition.start();
+        }
+
+        function stopMicState() {
+            isRecording = false;
+            micBtn.classList.remove('recording');
+        }
+
+        async function sendMessage() {
+            if (isRecording && recognition) {
+                recognition.stop();
+                return;
+            }
+
+            const text = userInput.value.trim();
+            if (!text) return;
+            
+            appendMessage('user', text);
+            userInput.value = '';
+            sendBtn.disabled = true;
+
+            const typingId = 'typing-' + Date.now();
+            appendMessage('bot', '<em>Thinking...</em>', typingId, false);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        question: text, 
+                        history: history 
+                    })
+                });
+
+                document.getElementById(typingId)?.closest('.message-wrapper').remove();
+                const botMsgId = 'bot-' + Date.now();
+                appendMessage('bot', '', botMsgId, true);
+                const botDiv = document.getElementById(botMsgId);
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = "";
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6);
+                            if (dataStr === '[DONE]') break;
+                            try {
+                                const data = JSON.parse(dataStr);
+                                if (data.text) {
+                                    fullText += data.text;
+                                    botDiv.innerHTML = `<strong>Qiqxar:</strong> ${fullText}`;
+                                    chatBox.scrollTop = chatBox.scrollHeight;
+                                } else if (data.error) {
+                                    botDiv.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+                
+                history.push({ role: "user", content: text });
+                history.push({ role: "assistant", content: fullText });
+
+            } catch (error) {
+                document.getElementById(typingId)?.closest('.message-wrapper')?.remove();
+                appendMessage('bot', '<strong>System Error:</strong> Could not reach the server.', null, false);
+            }
+            sendBtn.disabled = false;
+            userInput.focus();
+        }
+
+        function appendMessage(sender, text, id = null, showActions = false) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper ${sender}`;
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message`;
+            if (id) msgDiv.id = id;
+            msgDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'Qiqxar'}</strong> ${text}`;
+            wrapper.appendChild(msgDiv);
+
+            if (showActions && sender === 'bot') {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'bot-actions';
+                
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'action-icon-btn';
+                copyBtn.innerHTML = '📋 Copy';
+                copyBtn.onclick = () => {
+                    const cleanText = msgDiv.innerText.replace('Qiqxar:', '').trim();
+                    navigator.clipboard.writeText(cleanText);
+                    copyBtn.innerHTML = '✓ Copied';
+                    setTimeout(() => copyBtn.innerHTML = '📋 Copy', 2000);
+                };
+
+                const speakBtn = document.createElement('button');
+                speakBtn.className = 'action-icon-btn';
+                speakBtn.innerHTML = '🔊 Speak';
+                speakBtn.onclick = () => {
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        const cleanText = msgDiv.innerText.replace('Qiqxar:', '').trim();
+                        const utterance = new SpeechSynthesisUtterance(cleanText);
+                        window.speechSynthesis.speak(utterance);
+                    } else {
+                        alert('Text-to-speech not supported on this browser.');
+                    }
+                };
+
+                const upBtn = document.createElement('button');
+                upBtn.className = 'action-icon-btn';
+                upBtn.innerHTML = '👍';
+                upBtn.onclick = () => {
+                    upBtn.classList.toggle('active');
+                    downBtn.classList.remove('active');
+                };
+
+                const downBtn = document.createElement('button');
+                downBtn.className = 'action-icon-btn';
+                downBtn.innerHTML = '👎';
+                downBtn.onclick = () => {
+                    downBtn.classList.toggle('active');
+                    upBtn.classList.remove('active');
+                };
+
+                actionsDiv.appendChild(copyBtn);
+                actionsDiv.appendChild(speakBtn);
+                actionsDiv.appendChild(upBtn);
+                actionsDiv.appendChild(downBtn);
+                wrapper.appendChild(actionsDiv);
+            }
+
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function exportChat() {
+            if (history.length === 0) {
+                alert("No conversation history to export yet.");
+                return;
+            }
+            let transcript = "Qiqxar Chat Transcript\n=====================\n\n";
+            history.forEach(item => {
+                const role = item.role === 'user' ? 'You' : 'Qiqxar';
+                transcript += `${role}: ${item.content}\n\n`;
+            });
+
+            const blob = new Blob([transcript], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Qiqxar-Chat-${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
+    """
+
+@app.post("/api/chat")
+async def chat(payload: ChatRequest):
+    if not API_KEY:
+        raise HTTPException(status_code=503, detail="GROQ_API_KEY is missing on the server environment.")
+
+    headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for msg in payload.history:
+        messages.append({"role": msg.role, "content": msg.content})
+    messages.append({"role": "user", "content": payload.question})
+
+    async def stream_events() -> AsyncIterator[bytes]:
+        route_decision = "COMPLEX"
+        routing_prompt = (
+            f"Is this a simple proven fact OR does it require deep technical cross-checking? "
+            f"Question: '{payload.question}'. Reply ONLY with 'SIMPLE' or 'COMPLEX'."
+        )
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                route_resp = await client.post(GROQ_URL, headers=headers, json={
+                    "model": ROUTER_MODEL,
+                    "messages": [{"role": "user", "content": routing_prompt}],
+                    "temperature": 0.0,
+                })
+                if route_resp.status_code == 200:
+                    content = route_resp.json()["choices"][0]["message"]["content"]
+                    if "SIMPLE" in content.upper():
+                        route_decision = "SIMPLE"
+        except Exception as e:
+            logger.warning(f"Router exception: {e}")
+
+        final_messages = messages
+        if route_decision == "COMPLEX":
+            async def fetch_model(model_name: str):
+                try:
+                    async with httpx.AsyncClient(timeout=45.0) as client:
+                        resp = await client.post(GROQ_URL, headers=headers, json={
+                            "model": model_name,
+                            "messages": messages,
+                            "stream": False,
+                            "temperature": 0.2,
+                        })
+                        if resp.status_code == 200:
+                            return resp.json()["choices"][0]["message"]["content"]
+                except Exception as e:
+                    logger.warning(f"{model_name} exception: {e}")
+                return None
+
+            raw_responses = await asyncio.gather(*(fetch_model(m) for m in QIQXAR_MODELS))
+            valid_responses = [r for r in raw_responses if r]
+
+            if valid_responses:
+                synthesis_prompt = (
+                    f'You are the Synthesizer. Cross-check these models for the question: "{payload.question}"\n\n'
+                    + "\n".join(
+                        f"--- Model {i+1} ---\n{r}" for i, r in enumerate(valid_responses)
+                    )
+                    + "\n\nCRITICAL: If the models disagree on technical facts, flag the conflict. "
+                      "If you detect structural errors, correct them. Follow the Plain-Language rule strictly."
+                )
+                final_messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": synthesis_prompt},
+                ]
+
+        request_body = {
+            "model": SYNTH_MODEL,
+            "messages": final_messages,
+            "stream": True,
+            "temperature": 0.0,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                async with client.stream("POST", GROQ_URL, headers=headers, json=request_body) as upstream:
+                    if upstream.status_code >= 400:
+                        body = (await upstream.aread()).decode(errors="ignore")[:500]
+                        yield f"data: {json.dumps({'error': f'HTTP {upstream.status_code}', 'detail': body})}\n\n".encode()
+                        return
+
+                    async for line in upstream.aiter_lines():
+                        if line.startswith("data:"):
+                            value = line[5:].strip()
+                            if value == "[DONE]":
+                                yield b"data: [DONE]\n\n"
+                                return
+                            try:
+                                packet = json.loads(value)
+                                content = packet["choices"][0]["delta"].get("content", "")
+                                if content:
+                                    yield f"data: {json.dumps({'text': content})}\n\n".encode()
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.error(f"Stream Error: {e}")
+            yield f"data: {json.dumps({'error': 'Connection failed', 'detail': str(e)})}\n\n".encode()
+
+    return StreamingResponse(
+        stream_events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
