@@ -55,8 +55,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/")
 async def home():
-    return FileResponse("static/index.html")
-
+    return FileResponse("index.html")
 @app.post("/api/chat")
 async def chat(payload: ChatRequest):
     if not API_KEY:
