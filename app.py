@@ -1,4 +1,4 @@
-import json
+Import json
 import os
 import asyncio
 import logging
@@ -13,12 +13,12 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-ROUTER_MODEL = "llama-3.1-8b-instant"
-SYNTH_MODEL = "llama-3.3-70b-versatile"
+ROUTER_MODEL = "openai/gpt-oss-20b"
+SYNTH_MODEL = "openai/gpt-oss-120b"
 QIQXAR_MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "gemma2-9b-it",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.8-27b",
 ]
 
 app = FastAPI(title="Qiqxar - Focus 1.0")
@@ -33,23 +33,30 @@ SYSTEM_PROMPT = """You are Qiqxar, an ethical AI assistant.
 CRITICAL: If you are not 100% certain of a technical measurement or structural rule, say "I do not know, please consult a professional."
 """
 
+DEPTH_GUIDANCE = {
+    "brief": "Give a concise answer. BUT, if this is a complex technical task, prioritize accuracy and complete steps over brevity.",
+    "standard": "Give a clear, balanced answer with enough context to understand it.",
+    "deep": "Give a detailed explanation with reasoning, important caveats and useful context."
+}
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=12000)
 
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=12000)
+    depth: str = Field(default="brief", pattern="^(brief|standard|deep)$")
     history: list[ChatMessage] = Field(default_factory=list, max_length=20)
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    return r"""
+    return """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Qiqxar — No noise. Just information.</title>
+    <title>Qiqxar</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
@@ -110,19 +117,18 @@ async def home():
             gap: 10px;
         }
 
-        .icon-btn {
+        select, .icon-btn {
             background: var(--bg-surface);
             color: var(--text-primary);
             border: 1px solid var(--border-subtle);
             border-radius: 18px;
-            padding: 8px 14px;
+            padding: 6px 12px;
             font-size: 13px;
             cursor: pointer;
             outline: none;
-            transition: background 0.2s;
         }
 
-        .icon-btn:hover {
+        select:hover, .icon-btn:hover {
             background: var(--bg-surface-hover);
         }
 
@@ -184,7 +190,6 @@ async def home():
             font-size: 14px;
             cursor: pointer;
             text-align: left;
-            transition: background 0.2s;
         }
 
         .suggestion-chip:hover {
@@ -211,13 +216,6 @@ async def home():
         }
 
         .bot-row {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            width: 100%;
-        }
-
-        .bot-main-content {
             display: flex;
             align-items: flex-start;
             gap: 14px;
@@ -265,12 +263,6 @@ async def home():
             margin: 14px 0;
         }
         .bot-content pre code { background: transparent; padding: 0; color: #e3e3e3; }
-
-        /* Bot Action Bar (Copy, Speak, Thumbs Up/Down) */
-        .bot-actions { display: flex; gap: 8px; margin-left: 40px; align-items: center; }
-        .action-icon-btn { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px; transition: background 0.2s, color 0.2s; }
-        .action-icon-btn:hover { background: var(--bg-surface-hover); color: var(--accent-blue); }
-        .action-icon-btn.active { color: var(--accent-blue); }
 
         .thinking-dots {
             color: var(--text-secondary);
@@ -335,10 +327,9 @@ async def home():
 
         #mic-btn { background: transparent; color: var(--text-primary); }
         #mic-btn:hover { background: rgba(255, 255, 255, 0.08); }
-        #mic-btn.recording {
+        #mic-btn.listening {
             background: rgba(239, 68, 68, 0.2);
             color: #f87171;
-            animation: pulse 1.5s infinite;
         }
 
         #send-btn {
@@ -367,7 +358,11 @@ async def home():
             <span class="brand-tag">Focus 1.0</span>
         </div>
         <div class="header-actions">
-            <button class="icon-btn" onclick="exportChat()" title="Download Chat Transcript">📥 Download Chat</button>
+            <select id="depth-select" title="Response Depth">
+                <option value="brief">Brief</option>
+                <option value="standard" selected>Standard</option>
+                <option value="deep">Deep</option>
+            </select>
             <button class="icon-btn" onclick="resetChat()" title="Start a new chat">+ New</button>
         </div>
     </header>
@@ -391,7 +386,7 @@ async def home():
     <div id="input-dock">
         <div class="pill-box">
             <textarea id="user-input" placeholder="Ask Qiqxar..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
-            <button id="mic-btn" class="action-circle" onclick="toggleMic()" title="Voice Command">
+            <button id="mic-btn" class="action-circle" onclick="toggleMic()" title="Voice Input">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
@@ -400,7 +395,7 @@ async def home():
             </button>
             <button id="send-btn" class="action-circle" onclick="sendMessage()" title="Send">↑</button>
         </div>
-        <div class="disclaimer">Qiqxar can make mistakes. Verify important information.</div>
+        <div class="disclaimer">Qiqxar cross-checks multiple AI models. Verify critical measurements and medical facts.</div>
     </div>
 
     <script>
@@ -419,8 +414,7 @@ async def home():
 
         let history = [];
         let recognition = null;
-        let isRecording = false;
-        let shouldAutoSend = false;
+        let isListening = false;
 
         // Initialize Speech Recognition safely
         try {
@@ -428,69 +422,63 @@ async def home():
             if (SpeechAPI) {
                 recognition = new SpeechAPI();
                 recognition.continuous = false;
-                recognition.interimResults = false;
-                recognition.maxAlternatives = 1;
+                recognition.interimResults = true;
                 recognition.lang = 'en-US';
 
-                recognition.onstart = function() {
-                    isRecording = true;
+                recognition.onstart = () => {
+                    isListening = true;
                     const mic = document.getElementById('mic-btn');
-                    if (mic) mic.classList.add('recording');
+                    if (mic) mic.classList.add('listening');
                     const input = document.getElementById('user-input');
                     if (input) input.placeholder = "Listening...";
                 };
 
-                recognition.onresult = function(event) {
-                    const speechResult = event.results[0][0].transcript;
+                recognition.onresult = (event) => {
+                    let transcript = "";
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                    }
                     const input = document.getElementById('user-input');
                     if (input) {
-                        input.value = speechResult;
+                        input.value = transcript;
                         input.style.height = 'auto';
                         input.style.height = Math.min(input.scrollHeight, 160) + 'px';
                     }
-                    shouldAutoSend = true;
                 };
 
-                recognition.onerror = function(event) {
-                    console.error("Speech recognition error:", event.error);
-                    shouldAutoSend = false;
-                    stopMicUI();
-                };
-
-                recognition.onend = function() {
-                    stopMicUI();
-                    if (shouldAutoSend && document.getElementById('user-input').value.trim() !== '') {
-                        shouldAutoSend = false;
-                        sendMessage();
-                    }
-                };
+                recognition.onerror = () => { stopMicUI(); };
+                recognition.onend = () => { stopMicUI(); };
             }
         } catch (e) {
             recognition = null;
         }
 
         function stopMicUI() {
-            isRecording = false;
+            isListening = false;
             const mic = document.getElementById('mic-btn');
-            if (mic) mic.classList.remove('recording');
+            if (mic) mic.classList.remove('listening');
             const input = document.getElementById('user-input');
             if (input) input.placeholder = "Ask Qiqxar...";
         }
 
         function toggleMic() {
-            if (!recognition) {
-                alert("Speech recognition is not supported on this browser.");
-                return;
-            }
-            if (isRecording) {
-                recognition.stop();
-            } else {
-                shouldAutoSend = false;
-                recognition.start();
+            try {
+                if (!recognition) {
+                    alert("Voice input requires a secure HTTPS connection or is not supported in this browser.");
+                    return;
+                }
+                if (isListening) {
+                    recognition.stop();
+                } else {
+                    recognition.start();
+                }
+            } catch (err) {
+                alert("Mic Error: " + err.message);
+                stopMicUI();
             }
         }
 
-        // Auto-resize textarea
+        // Auto-resize input
         document.addEventListener('input', function(e) {
             if (e.target && e.target.id === 'user-input') {
                 e.target.style.height = 'auto';
@@ -543,37 +531,39 @@ async def home():
         }
 
         async function sendMessage() {
-            if (isRecording && recognition) {
-                try { recognition.stop(); } catch(e) {}
-            }
-
-            const input = document.getElementById('user-input');
-            const sendBtn = document.getElementById('send-btn');
-            const chatBox = document.getElementById('chat-box');
-            const chatContainer = document.getElementById('chat-container');
-
-            if (!input || !sendBtn || !chatBox) return;
-
-            const text = input.value.trim();
-            if (!text) return;
-
-            const welcome = document.getElementById('welcome-screen');
-            if (welcome) welcome.remove();
-
-            appendUserMessage(text);
-            input.value = '';
-            input.style.height = 'auto';
-            sendBtn.disabled = true;
-
-            const botId = 'bot-' + Date.now();
-            const botContentDiv = appendBotMessage('<span class="thinking-dots">Cross-checking models...</span>', botId, false);
-
             try {
+                if (isListening && recognition) {
+                    try { recognition.stop(); } catch(e) {}
+                }
+
+                const input = document.getElementById('user-input');
+                const sendBtn = document.getElementById('send-btn');
+                const chatBox = document.getElementById('chat-box');
+                const chatContainer = document.getElementById('chat-container');
+                const depthSelect = document.getElementById('depth-select');
+
+                if (!input || !sendBtn || !chatBox) return;
+
+                const text = input.value.trim();
+                if (!text) return;
+
+                const welcome = document.getElementById('welcome-screen');
+                if (welcome) welcome.remove();
+
+                appendUserMessage(text);
+                input.value = '';
+                input.style.height = 'auto';
+                sendBtn.disabled = true;
+
+                const botId = 'bot-' + Date.now();
+                const botContentDiv = appendBotMessage('<span class="thinking-dots">Cross-checking models...</span>', botId);
+
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         question: text,
+                        depth: depthSelect ? depthSelect.value : 'standard',
                         history: history
                     })
                 });
@@ -594,12 +584,12 @@ async def home():
                     const { done, value } = await reader.read();
                     if (done) break;
                     buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
+                    const lines = buffer.split('\\n');
                     buffer = lines.pop();
 
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
-                            const dataStr = line.slice(6);
+                            const dataStr = line.slice(6).trim();
                             if (dataStr === '[DONE]') break;
                             try {
                                 const data = JSON.parse(dataStr);
@@ -608,7 +598,7 @@ async def home():
                                     botContentDiv.innerHTML = renderMarkdown(fullText);
                                     if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
                                 } else if (data.error) {
-                                    botContentDiv.innerHTML = `<p><strong>Error:</strong> ${data.error}</p>`;
+                                    botContentDiv.innerHTML = `<p><strong>Error:</strong> ${data.error} (${data.detail || ''})</p>`;
                                 }
                             } catch (e) {}
                         }
@@ -618,15 +608,16 @@ async def home():
                 if (fullText) {
                     history.push({ role: "user", content: text });
                     history.push({ role: "assistant", content: fullText });
-                    // Enable action bar after complete response
-                    attachBotActions(botId, fullText);
                 }
 
-            } catch (error) {
-                botContentDiv.innerHTML = '<strong>System Error:</strong> Could not reach the server.';
+                sendBtn.disabled = false;
+                input.focus();
+
+            } catch (err) {
+                alert("Send Error: " + err.message);
+                const sendBtn = document.getElementById('send-btn');
+                if (sendBtn) sendBtn.disabled = false;
             }
-            sendBtn.disabled = false;
-            input.focus();
         }
 
         function appendUserMessage(text) {
@@ -653,9 +644,6 @@ async def home():
             row.className = 'bot-row';
             row.id = id;
 
-            const mainDiv = document.createElement('div');
-            mainDiv.className = 'bot-main-content';
-
             const icon = document.createElement('div');
             icon.className = 'sparkle-icon';
             icon.innerHTML = SPARKLE_SVG;
@@ -664,90 +652,11 @@ async def home():
             content.className = 'bot-content';
             content.innerHTML = initialHtml;
 
-            mainDiv.appendChild(icon);
-            mainDiv.appendChild(content);
-            row.appendChild(mainDiv);
+            row.appendChild(icon);
+            row.appendChild(content);
             chatBox.appendChild(row);
             if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
             return content;
-        }
-
-        function attachBotActions(botId, fullText) {
-            const row = document.getElementById(botId);
-            if (!row) return;
-
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'bot-actions';
-
-            // Copy Button
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'action-icon-btn';
-            copyBtn.innerHTML = '📋 Copy';
-            copyBtn.onclick = () => {
-                navigator.clipboard.writeText(fullText);
-                copyBtn.innerHTML = '✓ Copied';
-                setTimeout(() => copyBtn.innerHTML = '📋 Copy', 2000);
-            };
-
-            // Speak Button (Text-to-Speech)
-            const speakBtn = document.createElement('button');
-            speakBtn.className = 'action-icon-btn';
-            speakBtn.innerHTML = '🔊 Speak';
-            speakBtn.onclick = () => {
-                if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                    const utterance = new SpeechSynthesisUtterance(fullText);
-                    window.speechSynthesis.speak(utterance);
-                } else {
-                    alert('Text-to-speech not supported on this browser.');
-                }
-            };
-
-            // Thumbs Up
-            const upBtn = document.createElement('button');
-            upBtn.className = 'action-icon-btn';
-            upBtn.innerHTML = '👍';
-            upBtn.onclick = () => {
-                upBtn.classList.toggle('active');
-                downBtn.classList.remove('active');
-            };
-
-            // Thumbs Down
-            const downBtn = document.createElement('button');
-            downBtn.className = 'action-icon-btn';
-            downBtn.innerHTML = '👎';
-            downBtn.onclick = () => {
-                downBtn.classList.toggle('active');
-                upBtn.classList.remove('active');
-            };
-
-            actionsDiv.appendChild(copyBtn);
-            actionsDiv.appendChild(speakBtn);
-            actionsDiv.appendChild(upBtn);
-            actionsDiv.appendChild(downBtn);
-            row.appendChild(actionsDiv);
-        }
-
-        function exportChat() {
-            if (history.length === 0) {
-                alert("No conversation history to export yet.");
-                return;
-            }
-            let transcript = "Qiqxar Chat Transcript\n=====================\n\n";
-            history.forEach(item => {
-                const role = item.role === 'user' ? 'You' : 'Qiqxar';
-                transcript += `${role}: ${item.content}\n\n`;
-            });
-
-            const blob = new Blob([transcript], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Qiqxar-Chat-${new Date().toISOString().slice(0,10)}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
         }
     </script>
 </body>
@@ -761,7 +670,7 @@ async def chat(payload: ChatRequest):
 
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\n" + DEPTH_GUIDANCE[payload.depth]}]
     for msg in payload.history:
         messages.append({"role": msg.role, "content": msg.content})
     messages.append({"role": "user", "content": payload.question})
@@ -777,4 +686,83 @@ async def chat(payload: ChatRequest):
                 route_resp = await client.post(GROQ_URL, headers=headers, json={
                     "model": ROUTER_MODEL,
                     "messages": [{"role": "user", "content": routing_prompt}],
-                    "temperature": 0.0
+                    "temperature": 0.0,
+                })
+                if route_resp.status_code == 200:
+                    content = route_resp.json()["choices"][0]["message"]["content"]
+                    if "SIMPLE" in content.upper():
+                        route_decision = "SIMPLE"
+        except Exception as e:
+            logger.warning(f"Router exception: {e}")
+
+        final_messages = messages
+        if route_decision == "COMPLEX":
+            async def fetch_model(model_name: str):
+                try:
+                    async with httpx.AsyncClient(timeout=45.0) as client:
+                        resp = await client.post(GROQ_URL, headers=headers, json={
+                            "model": model_name,
+                            "messages": messages,
+                            "stream": False,
+                            "temperature": 0.2,
+                        })
+                        if resp.status_code == 200:
+                            return resp.json()["choices"][0]["message"]["content"]
+                except Exception as e:
+                    logger.warning(f"{model_name} exception: {e}")
+                return None
+
+            raw_responses = await asyncio.gather(*(fetch_model(m) for m in QIQXAR_MODELS))
+            valid_responses = [r for r in raw_responses if r]
+
+            if valid_responses:
+                synthesis_prompt = (
+                    f'You are the Synthesizer. Cross-check these models for the question: "{payload.question}"\n\n'
+                    + "\n".join(
+                        f"--- Model {i+1} ---\n{r}" for i, r in enumerate(valid_responses)
+                    )
+                    + "\n\nCRITICAL: If the models disagree on technical facts, flag the conflict. "
+                      "If you detect structural errors, correct them. Follow the Plain-Language rule strictly."
+                )
+                final_messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": synthesis_prompt},
+                ]
+
+        request_body = {
+            "model": SYNTH_MODEL,
+            "messages": final_messages,
+            "stream": True,
+            "temperature": 0.0,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                async with client.stream("POST", GROQ_URL, headers=headers, json=request_body) as upstream:
+                    if upstream.status_code >= 400:
+                        body = (await upstream.aread()).decode(errors="ignore")[:500]
+                        yield f"data: {json.dumps({'error': f'HTTP {upstream.status_code}', 'detail': body})}\n\n".encode()
+                        return
+
+                    async for line in upstream.aiter_lines():
+                        if line.startswith("data:"):
+                            value = line[5:].strip()
+                            if value == "[DONE]":
+                                yield b"data: [DONE]\n\n"
+                                return
+                            try:
+                                packet = json.loads(value)
+                                content = packet["choices"][0]["delta"].get("content", "")
+                                if content:
+                                    yield f"data: {json.dumps({'text': content})}\n\n".encode()
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.error(f"Stream Error: {e}")
+            yield f"data: {json.dumps({'error': 'Connection failed', 'detail': str(e)})}\n\n".encode()
+
+    return StreamingResponse(
+        stream_events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
