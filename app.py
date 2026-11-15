@@ -13,8 +13,13 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-# 100% verified, lightning-fast Groq production model
-MODEL_NAME = "llama-3.1-8b-instant"
+# Production models
+ROUTER_MODEL = "llama-3.1-8b-instant"
+SYNTH_MODEL = "llama-3.1-8b-instant"
+QIQXAR_MODELS = [
+    "llama-3.1-8b-instant",
+    "gemma2-9b-it",
+]
 
 app = FastAPI(title="Qiqxar — No noise. Just information.")
 
@@ -748,16 +753,74 @@ async def chat(payload: ChatRequest):
         messages.append({"role": msg.role, "content": msg.content})
     messages.append({"role": "user", "content": payload.question})
 
-    request_body = {
-        "model": MODEL_NAME,
-        "messages": messages,
-        "stream": True,
-        "temperature": 0.2,
-    }
-
     async def stream_events() -> AsyncIterator[bytes]:
+        # Step 1: Intelligent Routing (Simple greetings/pleasantries bypass cross-checking)
+        route_decision = "SIMPLE"
+        routing_prompt = (
+            f"Classify this user message: '{payload.question}'. "
+            f"Is it a simple greeting, pleasantry, or straightforward simple fact (reply SIMPLE) "
+            f"OR is it a technical, scientific, research-based, or complex multi-step question requiring cross-checking (reply COMPLEX)? "
+            f"Reply ONLY with 'SIMPLE' or 'COMPLEX'."
+        )
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                route_resp = await client.post(GROQ_URL, headers=headers, json={
+                    "model": ROUTER_MODEL,
+                    "messages": [{"role": "user", "content": routing_prompt}],
+                    "temperature": 0.0,
+                })
+                if route_resp.status_code == 200:
+                    content = route_resp.json()["choices"][0]["message"]["content"]
+                    if "COMPLEX" in content.upper():
+                        route_decision = "COMPLEX"
+        except Exception as e:
+            logger.warning(f"Router exception: {e}")
+
+        final_messages = messages
+        
+        # Step 2: Only cross-check if classified as COMPLEX (technical/scientific/research)
+        if route_decision == "COMPLEX":
+            async def fetch_model(model_name: str):
+                try:
+                    async with httpx.AsyncClient(timeout=45.0) as client:
+                        resp = await client.post(GROQ_URL, headers=headers, json={
+                            "model": model_name,
+                            "messages": messages,
+                            "stream": False,
+                            "temperature": 0.2,
+                        })
+                        if resp.status_code == 200:
+                            return resp.json()["choices"][0]["message"]["content"]
+                except Exception as e:
+                    logger.warning(f"{model_name} exception: {e}")
+                return None
+
+            raw_responses = await asyncio.gather(*(fetch_model(m) for m in QIQXAR_MODELS))
+            valid_responses = [r for r in raw_responses if r]
+
+            if valid_responses:
+                synthesis_prompt = (
+                    f'You are the Synthesizer. Cross-check these models for the technical/research question: "{payload.question}"\n\n'
+                    + "\n".join(
+                        f"--- Model {i+1} ---\n{r}" for i, r in enumerate(valid_responses)
+                    )
+                    + "\n\nCRITICAL: If the models disagree on technical facts, flag the conflict. "
+                      "If you detect structural errors, correct them. Follow the Plain-Language rule strictly."
+                )
+                final_messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": synthesis_prompt},
+                ]
+
+        request_body = {
+            "model": SYNTH_MODEL,
+            "messages": final_messages,
+            "stream": True,
+            "temperature": 0.0,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as client:
                 async with client.stream("POST", GROQ_URL, headers=headers, json=request_body) as upstream:
                     if upstream.status_code >= 400:
                         body = (await upstream.aread()).decode(errors="ignore")[:500]
