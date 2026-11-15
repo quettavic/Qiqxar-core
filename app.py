@@ -444,12 +444,4 @@ async def home():
                     shouldAutoSend = true;
                 };
 
-                recognition.onerror = function(event) {
-                    console.error("Speech recognition error:", event.error);
-                    shouldAutoSend = false;
-                    stopMicUI();
-                };
-
-                recognition.onend = function() {
-                    stopMicUI();
-                    if (shouldAutoSend && document.getElementById('user-input').value.trim
+                recognition.onerror =
