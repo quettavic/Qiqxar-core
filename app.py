@@ -10,24 +10,24 @@ from pydantic import BaseModel, Field
 from typing import AsyncIterator, Literal
 
 logger = logging.getLogger("uvicorn.error")
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 
-# --- QIQXAR MODELS (all :free — no paid models, so no 402 from OpenRouter) ---
-ROUTER_MODEL = "meta-llama/llama-3.1-8b-instruct:free"
-SYNTH_MODEL = "meta-llama/llama-3.1-8b-instruct:free"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+
+# --- QIQXAR MODELS (all free on Groq) ---
+ROUTER_MODEL = "llama-3.1-8b-instant"
+SYNTH_MODEL = "llama-3.3-70b-versatile"
 QIQXAR_MODELS = [
-    "meta-llama/llama-3.1-8b-instruct:free",
-    "microsoft/phi-3-mini-128k-instruct:free",
-    "huggingfaceh4/zephyr-7b-beta:free",
-    "mistralai/mistral-7b-instruct:free",
-    "google/gemma-2-9b-it:free",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "gemma2-9b-it",
+    "mixtral-8x7b-32768",
+    "qwen-qwq-32b",
 ]
 
 app = FastAPI(title="LenzAI - Focus 1.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# --- HEART & LIVER (BOOKLET 1) ---
 SYSTEM_PROMPT = """You are LenzAI — Focus 1.0, an ethical AI assistant.
 1. Plain-Language Closure: Do not use jargon. If a complex term is necessary, define it instantly in plain words. Leave zero undefined terms standing for a non-technical user.
 2. Epistemological Integrity: Do not claim absolute truth. Report facts, rate confidence, and surface conflicts. Never hallucinate.
@@ -79,7 +79,7 @@ async def chat(payload: ChatRequest):
         )
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
-                route_resp = await client.post(OPENROUTER_URL, headers=headers, json={
+                route_resp = await client.post(GROQ_URL, headers=headers, json={
                     "model": ROUTER_MODEL,
                     "messages": [{"role": "user", "content": routing_prompt}],
                     "temperature": 0.0,
@@ -98,7 +98,7 @@ async def chat(payload: ChatRequest):
             async def fetch_model(model_name: str):
                 try:
                     async with httpx.AsyncClient(timeout=45.0) as client:
-                        resp = await client.post(OPENROUTER_URL, headers=headers, json={
+                        resp = await client.post(GROQ_URL, headers=headers, json={
                             "model": model_name,
                             "messages": messages,
                             "stream": False,
@@ -138,7 +138,7 @@ async def chat(payload: ChatRequest):
 
         try:
             async with httpx.AsyncClient(timeout=90.0) as client:
-                async with client.stream("POST", OPENROUTER_URL, headers=headers, json=request_body) as upstream:
+                async with client.stream("POST", GROQ_URL, headers=headers, json=request_body) as upstream:
                     if upstream.status_code >= 400:
                         body = (await upstream.aread()).decode(errors="ignore")[:500]
                         yield f"data: {json.dumps({'error': f'HTTP {upstream.status_code}', 'detail': body})}\n\n".encode()
