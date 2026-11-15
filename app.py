@@ -84,7 +84,6 @@ async def home():
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Clean Minimalist Top Bar */
         header {
             display: flex;
             justify-content: space-between;
@@ -100,7 +99,6 @@ async def home():
             gap: 8px;
             font-size: 19px;
             font-weight: 500;
-            letter-spacing: -0.2px;
             color: var(--text-primary);
         }
 
@@ -128,14 +126,12 @@ async def home():
             font-size: 13px;
             cursor: pointer;
             outline: none;
-            transition: background 0.2s;
         }
 
         select:hover, .icon-btn:hover {
             background: var(--bg-surface-hover);
         }
 
-        /* Scrollable Canvas */
         #chat-container {
             flex: 1;
             overflow-y: auto;
@@ -153,7 +149,6 @@ async def home():
             gap: 28px;
         }
 
-        /* Welcome Greeting Screen */
         #welcome-screen {
             margin-top: 12vh;
             display: flex;
@@ -165,7 +160,6 @@ async def home():
             font-size: 36px;
             font-weight: 500;
             line-height: 1.2;
-            letter-spacing: -0.5px;
         }
 
         .gradient-text {
@@ -195,7 +189,6 @@ async def home():
             border-radius: 16px;
             font-size: 14px;
             cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
             text-align: left;
         }
 
@@ -203,7 +196,6 @@ async def home():
             background: var(--bg-surface-hover);
         }
 
-        /* User Message (Soft Pill on Right) */
         .user-row {
             display: flex;
             justify-content: flex-end;
@@ -223,7 +215,6 @@ async def home():
             word-break: break-word;
         }
 
-        /* AI Message (Borderless, Clean Typography on Left) */
         .bot-row {
             display: flex;
             align-items: flex-start;
@@ -250,22 +241,16 @@ async def home():
             word-break: break-word;
         }
 
-        /* Markdown Typography Styling inside AI Responses */
         .bot-content p { margin-bottom: 14px; }
         .bot-content p:last-child { margin-bottom: 0; }
         .bot-content strong { color: #ffffff; font-weight: 600; }
         .bot-content ul, .bot-content ol { margin: 10px 0 14px 22px; }
         .bot-content li { margin-bottom: 6px; }
-        .bot-content h1, .bot-content h2, .bot-content h3 {
-            margin: 18px 0 10px 0;
-            font-weight: 600;
-            color: #ffffff;
-        }
         .bot-content code {
             background: var(--bg-surface);
             padding: 2px 6px;
             border-radius: 6px;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-family: monospace;
             font-size: 14px;
             color: var(--accent-blue);
         }
@@ -277,13 +262,8 @@ async def home():
             overflow-x: auto;
             margin: 14px 0;
         }
-        .bot-content pre code {
-            background: transparent;
-            padding: 0;
-            color: #e3e3e3;
-        }
+        .bot-content pre code { background: transparent; padding: 0; color: #e3e3e3; }
 
-        /* Thinking Pulse */
         .thinking-dots {
             color: var(--text-secondary);
             font-style: italic;
@@ -291,7 +271,6 @@ async def home():
         }
         @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
-        /* Floating Pill Input Box at Bottom */
         #input-dock {
             padding: 10px 16px 20px 16px;
             background: var(--bg-main);
@@ -310,7 +289,6 @@ async def home():
             display: flex;
             align-items: flex-end;
             gap: 8px;
-            transition: border-color 0.2s, background 0.2s;
         }
 
         .pill-box:focus-within {
@@ -333,11 +311,8 @@ async def home():
             padding: 6px 0;
         }
 
-        #user-input::placeholder {
-            color: var(--text-secondary);
-        }
+        #user-input::placeholder { color: var(--text-secondary); }
 
-        /* Mic & Send Buttons */
         .action-circle {
             width: 38px;
             height: 38px;
@@ -348,28 +323,13 @@ async def home():
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            transition: background 0.2s, transform 0.1s;
         }
 
-        #mic-btn {
-            background: transparent;
-            color: var(--text-primary);
-        }
-
-        #mic-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
-
+        #mic-btn { background: transparent; color: var(--text-primary); }
+        #mic-btn:hover { background: rgba(255, 255, 255, 0.08); }
         #mic-btn.listening {
             background: rgba(239, 68, 68, 0.2);
             color: #f87171;
-            animation: micPulse 1.2s infinite;
-        }
-
-        @keyframes micPulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
-            70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
         #send-btn {
@@ -378,11 +338,9 @@ async def home():
             font-size: 18px;
             font-weight: bold;
         }
-
         #send-btn:disabled {
             background: rgba(255, 255, 255, 0.12);
             color: var(--text-secondary);
-            cursor: default;
         }
 
         .disclaimer {
@@ -462,48 +420,42 @@ async def home():
             </svg>
         `;
 
-        // --- Voice Recognition Setup (iOS Safari / Chrome compatible) ---
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        // Safe Speech Recognition Wrapper
         let recognition = null;
         let isListening = false;
-        let textBeforeSpeech = "";
+        
+        try {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
 
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
+                recognition.onstart = () => {
+                    isListening = true;
+                    micBtn.classList.add('listening');
+                    userInput.placeholder = "Listening...";
+                };
 
-            recognition.onstart = () => {
-                isListening = true;
-                textBeforeSpeech = userInput.value.trim();
-                micBtn.classList.add('listening');
-                userInput.placeholder = "Listening...";
-            };
+                recognition.onresult = (event) => {
+                    let transcript = "";
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                    }
+                    userInput.value = transcript;
+                    userInput.style.height = 'auto';
+                    userInput.style.height = Math.min(userInput.scrollHeight, 160) + 'px';
+                };
 
-            recognition.onresult = (event) => {
-                let transcript = "";
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
-                }
-                userInput.value = (textBeforeSpeech ? textBeforeSpeech + " " : "") + transcript;
-                userInput.style.height = 'auto';
-                userInput.style.height = Math.min(userInput.scrollHeight, 160) + 'px';
-            };
-
-            recognition.onerror = (event) => {
-                stopListeningUI();
-                if (event.error === 'not-allowed') {
-                    alert("Microphone permission was blocked. Please allow microphone access in your browser settings.");
-                }
-            };
-
-            recognition.onend = () => {
-                stopListeningUI();
-            };
+                recognition.onerror = () => { stopMicUI(); };
+                recognition.onend = () => { stopMicUI(); };
+            }
+        } catch (e) {
+            recognition = null;
         }
 
-        function stopListeningUI() {
+        function stopMicUI() {
             isListening = false;
             micBtn.classList.remove('listening');
             userInput.placeholder = "Ask Qiqxar...";
@@ -511,7 +463,7 @@ async def home():
 
         function toggleMic() {
             if (!recognition) {
-                alert("Voice input is not supported in this browser. Try Safari or Chrome.");
+                alert("Voice input requires a secure HTTPS connection or is not supported in this browser.");
                 return;
             }
             if (isListening) {
@@ -524,7 +476,6 @@ async def home():
                 }
             }
         }
-        // -------------------------------------------------------------
 
         userInput.addEventListener('input', function() {
             this.style.height = 'auto';
@@ -564,11 +515,13 @@ async def home():
             if (typeof marked !== 'undefined') {
                 return marked.parse(text);
             }
-            return text.replace(/\\n/g, '<br>');
+            return text;
         }
 
         async function sendMessage() {
-            if (isListening && recognition) recognition.stop();
+            if (isListening && recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
 
             const text = userInput.value.trim();
             if (!text) return;
@@ -615,7 +568,7 @@ async def home():
                     buffer = lines.pop();
 
                     for (const line of lines) {
-                        if (line.startsWith('data: ')) {
+                        if (line.startswith('data: ')) {
                             const dataStr = line.slice(6).trim();
                             if (dataStr === '[DONE]') break;
                             try {
