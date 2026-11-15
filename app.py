@@ -1,11 +1,4 @@
-increased for improved accessibility. You can choose to enable a more compact line height from the view settings menu.
 
-‎app.py‎
-+57
--37
-Lines changed: 57 additions & 37 deletions
-Original file line number	Diff line number	Diff line change
-@@ -1,10 +1,9 @@
 import json
 import os
 import asyncio
