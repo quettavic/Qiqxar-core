@@ -13,11 +13,8 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-# 100% verified active self-serve Groq production model
-MODEL_NAME = "openai/gpt-oss-20b"
-QIQXAR_MODELS = [
-    "openai/gpt-oss-20b",
-]
+# Universally available, rock-solid Groq production model
+MODEL_NAME = "llama3-8b-8192"
 
 app = FastAPI(title="Qiqxar — No noise. Just information.")
 
@@ -698,4 +695,94 @@ async def home():
                 downBtn.classList.remove('active');
             };
 
-            const downBtn =
+            const downBtn = document.createElement('button');
+            downBtn.className = 'action-icon-btn';
+            downBtn.innerHTML = '👎';
+            downBtn.onclick = () => {
+                downBtn.classList.toggle('active');
+                upBtn.classList.remove('active');
+            };
+
+            actionsDiv.appendChild(copyBtn);
+            actionsDiv.appendChild(speakBtn);
+            actionsDiv.appendChild(upBtn);
+            actionsDiv.appendChild(downBtn);
+            row.appendChild(actionsDiv);
+        }
+
+        function exportChat() {
+            if (history.length === 0) {
+                alert("No conversation history to export yet.");
+                return;
+            }
+            let transcript = "Qiqxar Chat Transcript\n=====================\n\n";
+            history.forEach(item => {
+                const role = item.role === 'user' ? 'You' : 'Qiqxar';
+                transcript += `${role}: ${item.content}\n\n`;
+            });
+
+            const blob = new Blob([transcript], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Qiqxar-Chat-${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
+"""
+
+@app.post("/api/chat")
+async def chat(payload: ChatRequest):
+    if not API_KEY:
+        raise HTTPException(status_code=503, detail="GROQ_API_KEY environment variable is missing on the server.")
+
+    headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for msg in payload.history:
+        messages.append({"role": msg.role, "content": msg.content})
+    messages.append({"role": "user", "content": payload.question})
+
+    request_body = {
+        "model": MODEL_NAME,
+        "messages": messages,
+        "stream": True,
+        "temperature": 0.2,
+    }
+
+    async def stream_events() -> AsyncIterator[bytes]:
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream("POST", GROQ_URL, headers=headers, json=request_body) as upstream:
+                    if upstream.status_code >= 400:
+                        body = (await upstream.aread()).decode(errors="ignore")[:500]
+                        yield f"data: {json.dumps({'error': f'HTTP {upstream.status_code}', 'detail': body})}\n\n".encode()
+                        return
+
+                    async for line in upstream.aiter_lines():
+                        if line.startswith("data:"):
+                            value = line[5:].strip()
+                            if value == "[DONE]":
+                                yield b"data: [DONE]\n\n"
+                                return
+                            try:
+                                packet = json.loads(value)
+                                content = packet["choices"][0]["delta"].get("content", "")
+                                if content:
+                                    yield f"data: {json.dumps({'text': content})}\n\n".encode()
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.error(f"Stream Error: {e}")
+            yield f"data: {json.dumps({'error': 'Connection failed', 'detail': str(e)})}\n\n".encode()
+
+    return StreamingResponse(
+        stream_events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
