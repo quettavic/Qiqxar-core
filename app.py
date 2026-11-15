@@ -13,7 +13,6 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-# Valid Groq production models
 ROUTER_MODEL = "llama-3.1-8b-instant"
 SYNTH_MODEL = "llama-3.3-70b-versatile"
 QIQXAR_MODELS = [
@@ -49,177 +48,542 @@ async def home():
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Qiqxar — No noise. Just information.</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
-        
-        header { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 12px 20px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-        .logo-area { display: flex; align-items: center; gap: 12px; }
-        .logo-icon { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #0ea5e9, #6366f1); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; color: white; box-shadow: 0 0 12px rgba(14, 165, 233, 0.4); }
-        h1 { font-size: 1.2rem; font-weight: 600; margin: 0; }
-        .tagline { font-size: 0.75rem; color: #94a3b8; }
+        :root {
+            --bg-main: #131314;
+            --bg-surface: #1e1f20;
+            --bg-surface-hover: #282a2c;
+            --user-pill: #282a2c;
+            --text-primary: #e3e3e3;
+            --text-secondary: #9aa0a6;
+            --accent-blue: #a8c7fa;
+            --accent-gradient: linear-gradient(135deg, #4285f4, #9b72cb, #d96570);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+        }
 
-        #chat-box { flex: 1; background: #1e293b; border-radius: 12px; padding: 20px; overflow-y: auto; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px; }
-        .message-wrapper { display: flex; flex-direction: column; max-width: 85%; }
-        .message-wrapper.user { align-self: flex-end; }
-        .message-wrapper.bot { align-self: flex-start; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .message { padding: 12px 16px; border-radius: 18px; line-height: 1.5; font-size: 16px; white-space: pre-wrap; }
-        .user .message { background: #0284c7; color: white; border-bottom-right-radius: 4px; }
-        .bot .message { background: #334155; color: #f8fafc; border-bottom-left-radius: 4px; }
-        
-        .bot-actions { display: flex; gap: 8px; margin-top: 6px; margin-left: 8px; align-items: center; }
-        .action-icon-btn { background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px; transition: background 0.2s, color 0.2s; }
-        .action-icon-btn:hover { background: rgba(255,255,255,0.08); color: #0ea5e9; }
-        .action-icon-btn.active { color: #0ea5e9; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
 
-        #controls { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
-        #user-input { flex: 1; padding: 15px; border: 1px solid #475569; border-radius: 10px; font-size: 16px; background: #1e293b; color: white; outline: none; }
-        #user-input:focus { border-color: #0ea5e9; }
-        
-        button { padding: 15px 25px; background: #0ea5e9; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
-        button:disabled { background: #475569; cursor: not-allowed; }
-        
-        .icon-btn { background: #1e293b; border: 1px solid #475569; color: #94a3b8; padding: 15px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .icon-btn:hover { border-color: #0ea5e9; color: white; }
-        .icon-btn.recording { border-color: #ef4444; color: #ef4444; background-color: rgba(239, 68, 68, 0.15); animation: pulse 1.5s infinite; }
-        
-        .header-btn { background: #0f172a; border: 1px solid #475569; color: #cbd5e1; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: normal; cursor: pointer; transition: all 0.2s; }
-        .header-btn:hover { border-color: #0ea5e9; color: white; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            background: var(--bg-main);
+            z-index: 10;
+        }
 
-        .disclaimer { font-size: 0.72rem; color: #64748b; text-align: center; }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 19px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
 
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .brand-tag {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-surface);
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 8px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--bg-surface-hover);
+        }
+
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px 32px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .canvas-column {
+            width: 100%;
+            max-width: 760px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        #welcome-screen {
+            margin-top: 12vh;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .greeting-title {
+            font-size: 36px;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+
+        .gradient-text {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .greeting-sub {
+            font-size: 22px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .suggestion-chip {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.2s;
+        }
+
+        .suggestion-chip:hover {
+            background: var(--bg-surface-hover);
+        }
+
+        .user-row {
+            display: flex;
+            justify-content: flex-end;
+            width: 100%;
+        }
+
+        .user-bubble {
+            background: var(--user-pill);
+            color: var(--text-primary);
+            padding: 12px 18px;
+            border-radius: 22px;
+            border-bottom-right-radius: 6px;
+            max-width: 80%;
+            font-size: 16px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .bot-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .bot-main-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            width: 100%;
+        }
+
+        .sparkle-icon {
+            width: 26px;
+            height: 26px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bot-content {
+            flex: 1;
+            min-width: 0;
+            font-size: 16px;
+            line-height: 1.65;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        .bot-content p { margin-bottom: 14px; }
+        .bot-content p:last-child { margin-bottom: 0; }
+        .bot-content strong { color: #ffffff; font-weight: 600; }
+        .bot-content ul, .bot-content ol { margin: 10px 0 14px 22px; }
+        .bot-content li { margin-bottom: 6px; }
+        .bot-content code {
+            background: var(--bg-surface);
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+            color: var(--accent-blue);
+        }
+        .bot-content pre {
+            background: #18191a;
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 14px;
+            overflow-x: auto;
+            margin: 14px 0;
+        }
+        .bot-content pre code { background: transparent; padding: 0; color: #e3e3e3; }
+
+        /* Bot Action Bar (Copy, Speak, Thumbs Up/Down) */
+        .bot-actions { display: flex; gap: 8px; margin-left: 40px; align-items: center; }
+        .action-icon-btn { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px; transition: background 0.2s, color 0.2s; }
+        .action-icon-btn:hover { background: var(--bg-surface-hover); color: var(--accent-blue); }
+        .action-icon-btn.active { color: var(--accent-blue); }
+
+        .thinking-dots {
+            color: var(--text-secondary);
+            font-style: italic;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        #input-dock {
+            padding: 10px 16px 20px 16px;
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .pill-box {
+            width: 100%;
+            max-width: 760px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 28px;
+            padding: 8px 12px 8px 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .pill-box:focus-within {
+            background: var(--bg-surface-hover);
+            border-color: rgba(168, 199, 250, 0.4);
+        }
+
+        #user-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 16px;
+            line-height: 1.5;
+            max-height: 160px;
+            min-height: 24px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            padding: 6px 0;
+        }
+
+        #user-input::placeholder { color: var(--text-secondary); }
+
+        .action-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        #mic-btn { background: transparent; color: var(--text-primary); }
+        #mic-btn:hover { background: rgba(255, 255, 255, 0.08); }
+        #mic-btn.recording {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            animation: pulse 1.5s infinite;
+        }
+
+        #send-btn {
+            background: var(--accent-blue);
+            color: #131314;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #send-btn:disabled {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text-secondary);
+        }
+
+        .disclaimer {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <header>
-        <div class="logo-area">
-            <div class="logo-icon">Q</div>
-            <div>
-                <h1>Qiqxar</h1>
-                <div class="tagline">No other way. Just information.</div>
-            </div>
+        <div class="brand">
+            <span>Qiqxar</span>
+            <span class="brand-tag">Focus 1.0</span>
         </div>
-        <button class="header-btn" onclick="exportChat()" title="Download Chat Transcript">📥 Download Chat</button>
+        <div class="header-actions">
+            <button class="icon-btn" onclick="exportChat()" title="Download Chat Transcript">📥 Download Chat</button>
+            <button class="icon-btn" onclick="resetChat()" title="Start a new chat">+ New</button>
+        </div>
     </header>
 
-    <div id="chat-box">
-        <div class="message-wrapper bot">
-            <div class="message"><strong>Qiqxar:</strong> System online. How can I help you analyze your data today?</div>
+    <div id="chat-container">
+        <div class="canvas-column" id="chat-box">
+            <div id="welcome-screen">
+                <div>
+                    <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
+                    <div class="greeting-sub">How can Qiqxar help you today?</div>
+                </div>
+                <div class="chip-row">
+                    <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
+                    <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
+                    <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <div id="controls">
-        <button id="micBtn" class="icon-btn" onclick="toggleMic()" title="Voice Command">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
-                <line x1="12" y1="19" x2="12" y2="23"></line>
-                <line x1="8" y1="23" x2="16" y2="23"></line>
-            </svg>
-        </button>
 
-        <input type="text" id="user-input" placeholder="Ask Qiqxar anything or use mic..." onkeypress="handleKeyPress(event)">
-        <button id="send-btn" onclick="sendMessage()">Send</button>
+    <div id="input-dock">
+        <div class="pill-box">
+            <textarea id="user-input" placeholder="Ask Qiqxar..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+            <button id="mic-btn" class="action-circle" onclick="toggleMic()" title="Voice Command">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" x2="12" y1="19" y2="22"/>
+                </svg>
+            </button>
+            <button id="send-btn" class="action-circle" onclick="sendMessage()" title="Send">↑</button>
+        </div>
+        <div class="disclaimer">Qiqxar can make mistakes. Verify important information.</div>
     </div>
 
-    <div class="disclaimer">Qiqxar can make mistakes. Verify important information.</div>
-
     <script>
-        const chatBox = document.getElementById('chat-box');
-        const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const micBtn = document.getElementById('micBtn');
+        const SPARKLE_SVG = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C12.3 7.2 16.8 11.7 22 12C16.8 12.3 12.3 16.8 12 22C11.7 16.8 7.2 12.3 2 12C7.2 11.7 11.7 7.2 12 2Z" fill="url(#qiqxarGrad)"/>
+                <defs>
+                    <linearGradient id="qiqxarGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#4285F4"/>
+                        <stop offset="0.5" stop-color="#9B72CB"/>
+                        <stop offset="1" stop-color="#D96570"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        `;
+
         let history = [];
         let recognition = null;
         let isRecording = false;
         let shouldAutoSend = false;
 
-        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+        // Initialize Speech Recognition safely
+        try {
+            const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechAPI) {
+                recognition = new SpeechAPI();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = function() {
+                    isRecording = true;
+                    const mic = document.getElementById('mic-btn');
+                    if (mic) mic.classList.add('recording');
+                    const input = document.getElementById('user-input');
+                    if (input) input.placeholder = "Listening...";
+                };
+
+                recognition.onresult = function(event) {
+                    const speechResult = event.results[0][0].transcript;
+                    const input = document.getElementById('user-input');
+                    if (input) {
+                        input.value = speechResult;
+                        input.style.height = 'auto';
+                        input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+                    }
+                    shouldAutoSend = true;
+                };
+
+                recognition.onerror = function(event) {
+                    console.error("Speech recognition error:", event.error);
+                    shouldAutoSend = false;
+                    stopMicUI();
+                };
+
+                recognition.onend = function() {
+                    stopMicUI();
+                    if (shouldAutoSend && document.getElementById('user-input').value.trim() !== '') {
+                        shouldAutoSend = false;
+                        sendMessage();
+                    }
+                };
+            }
+        } catch (e) {
+            recognition = null;
+        }
+
+        function stopMicUI() {
+            isRecording = false;
+            const mic = document.getElementById('mic-btn');
+            if (mic) mic.classList.remove('recording');
+            const input = document.getElementById('user-input');
+            if (input) input.placeholder = "Ask Qiqxar...";
+        }
 
         function toggleMic() {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            if (!recognition) {
                 alert("Speech recognition is not supported on this browser.");
                 return;
             }
-
             if (isRecording) {
                 recognition.stop();
-                return;
-            }
-
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-            shouldAutoSend = false;
-
-            recognition.onstart = function() {
-                isRecording = true;
-                micBtn.classList.add('recording');
-            };
-
-            recognition.onresult = function(event) {
-                const speechResult = event.results[0][0].transcript;
-                userInput.value = speechResult;
-                shouldAutoSend = true;
-            };
-
-            recognition.onerror = function(event) {
-                console.error("Speech recognition error:", event.error);
+            } else {
                 shouldAutoSend = false;
-                stopMicState();
-            };
-
-            recognition.onend = function() {
-                stopMicState();
-                if (shouldAutoSend && userInput.value.trim() !== '') {
-                    shouldAutoSend = false;
-                    sendMessage();
-                }
-            };
-
-            recognition.start();
+                recognition.start();
+            }
         }
 
-        function stopMicState() {
-            isRecording = false;
-            micBtn.classList.remove('recording');
+        // Auto-resize textarea
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.id === 'user-input') {
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+            }
+        });
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function useChip(text) {
+            const input = document.getElementById('user-input');
+            if (input) {
+                input.value = text;
+                sendMessage();
+            }
+        }
+
+        function resetChat() {
+            history = [];
+            const chatBox = document.getElementById('chat-box');
+            if (chatBox) {
+                chatBox.innerHTML = `
+                    <div id="welcome-screen">
+                        <div>
+                            <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
+                            <div class="greeting-sub">How can Qiqxar help you today?</div>
+                        </div>
+                        <div class="chip-row">
+                            <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
+                            <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
+                            <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderMarkdown(text) {
+            try {
+                if (typeof marked !== 'undefined' && marked.parse) {
+                    return marked.parse(text);
+                }
+            } catch (e) {}
+            return text;
         }
 
         async function sendMessage() {
             if (isRecording && recognition) {
-                recognition.stop();
-                return;
+                try { recognition.stop(); } catch(e) {}
             }
 
-            const text = userInput.value.trim();
+            const input = document.getElementById('user-input');
+            const sendBtn = document.getElementById('send-btn');
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+
+            if (!input || !sendBtn || !chatBox) return;
+
+            const text = input.value.trim();
             if (!text) return;
-            
-            appendMessage('user', text);
-            userInput.value = '';
+
+            const welcome = document.getElementById('welcome-screen');
+            if (welcome) welcome.remove();
+
+            appendUserMessage(text);
+            input.value = '';
+            input.style.height = 'auto';
             sendBtn.disabled = true;
 
-            const typingId = 'typing-' + Date.now();
-            appendMessage('bot', '<em>Thinking...</em>', typingId, false);
+            const botId = 'bot-' + Date.now();
+            const botContentDiv = appendBotMessage('<span class="thinking-dots">Cross-checking models...</span>', botId, false);
 
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        question: text, 
-                        history: history 
+                    body: JSON.stringify({
+                        question: text,
+                        history: history
                     })
                 });
 
-                document.getElementById(typingId)?.closest('.message-wrapper').remove();
-                const botMsgId = 'bot-' + Date.now();
-                appendMessage('bot', '', botMsgId, true);
-                const botDiv = document.getElementById(botMsgId);
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    botContentDiv.innerHTML = `<p><strong>Server Error (${response.status}):</strong> ${errData.detail || 'Check server logs.'}</p>`;
+                    sendBtn.disabled = false;
+                    return;
+                }
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -241,90 +605,127 @@ async def home():
                                 const data = JSON.parse(dataStr);
                                 if (data.text) {
                                     fullText += data.text;
-                                    botDiv.innerHTML = `<strong>Qiqxar:</strong> ${fullText}`;
-                                    chatBox.scrollTop = chatBox.scrollHeight;
+                                    botContentDiv.innerHTML = renderMarkdown(fullText);
+                                    if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
                                 } else if (data.error) {
-                                    botDiv.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                                    botContentDiv.innerHTML = `<p><strong>Error:</strong> ${data.error}</p>`;
                                 }
                             } catch (e) {}
                         }
                     }
                 }
-                
-                history.push({ role: "user", content: text });
-                history.push({ role: "assistant", content: fullText });
+
+                if (fullText) {
+                    history.push({ role: "user", content: text });
+                    history.push({ role: "assistant", content: fullText });
+                    // Enable action bar after complete response
+                    attachBotActions(botId, fullText);
+                }
 
             } catch (error) {
-                document.getElementById(typingId)?.closest('.message-wrapper')?.remove();
-                appendMessage('bot', '<strong>System Error:</strong> Could not reach the server.', null, false);
+                botContentDiv.innerHTML = '<strong>System Error:</strong> Could not reach the server.';
             }
             sendBtn.disabled = false;
-            userInput.focus();
+            input.focus();
         }
 
-        function appendMessage(sender, text, id = null, showActions = false) {
-            const wrapper = document.createElement('div');
-            wrapper.className = `message-wrapper ${sender}`;
+        function appendUserMessage(text) {
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatBox) return;
 
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message`;
-            if (id) msgDiv.id = id;
-            msgDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'Qiqxar'}</strong> ${text}`;
-            wrapper.appendChild(msgDiv);
+            const row = document.createElement('div');
+            row.className = 'user-row';
+            const bubble = document.createElement('div');
+            bubble.className = 'user-bubble';
+            bubble.textContent = text;
+            row.appendChild(bubble);
+            chatBox.appendChild(row);
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
 
-            if (showActions && sender === 'bot') {
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'bot-actions';
-                
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'action-icon-btn';
-                copyBtn.innerHTML = '📋 Copy';
-                copyBtn.onclick = () => {
-                    const cleanText = msgDiv.innerText.replace('Qiqxar:', '').trim();
-                    navigator.clipboard.writeText(cleanText);
-                    copyBtn.innerHTML = '✓ Copied';
-                    setTimeout(() => copyBtn.innerHTML = '📋 Copy', 2000);
-                };
+        function appendBotMessage(initialHtml, id) {
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatBox) return null;
 
-                const speakBtn = document.createElement('button');
-                speakBtn.className = 'action-icon-btn';
-                speakBtn.innerHTML = '🔊 Speak';
-                speakBtn.onclick = () => {
-                    if ('speechSynthesis' in window) {
-                        window.speechSynthesis.cancel();
-                        const cleanText = msgDiv.innerText.replace('Qiqxar:', '').trim();
-                        const utterance = new SpeechSynthesisUtterance(cleanText);
-                        window.speechSynthesis.speak(utterance);
-                    } else {
-                        alert('Text-to-speech not supported on this browser.');
-                    }
-                };
+            const row = document.createElement('div');
+            row.className = 'bot-row';
+            row.id = id;
 
-                const upBtn = document.createElement('button');
-                upBtn.className = 'action-icon-btn';
-                upBtn.innerHTML = '👍';
-                upBtn.onclick = () => {
-                    upBtn.classList.toggle('active');
-                    downBtn.classList.remove('active');
-                };
+            const mainDiv = document.createElement('div');
+            mainDiv.className = 'bot-main-content';
 
-                const downBtn = document.createElement('button');
-                downBtn.className = 'action-icon-btn';
-                downBtn.innerHTML = '👎';
-                downBtn.onclick = () => {
-                    downBtn.classList.toggle('active');
-                    upBtn.classList.remove('active');
-                };
+            const icon = document.createElement('div');
+            icon.className = 'sparkle-icon';
+            icon.innerHTML = SPARKLE_SVG;
 
-                actionsDiv.appendChild(copyBtn);
-                actionsDiv.appendChild(speakBtn);
-                actionsDiv.appendChild(upBtn);
-                actionsDiv.appendChild(downBtn);
-                wrapper.appendChild(actionsDiv);
-            }
+            const content = document.createElement('div');
+            content.className = 'bot-content';
+            content.innerHTML = initialHtml;
 
-            chatBox.appendChild(wrapper);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            mainDiv.appendChild(icon);
+            mainDiv.appendChild(content);
+            row.appendChild(mainDiv);
+            chatBox.appendChild(row);
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            return content;
+        }
+
+        function attachBotActions(botId, fullText) {
+            const row = document.getElementById(botId);
+            if (!row) return;
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'bot-actions';
+
+            // Copy Button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'action-icon-btn';
+            copyBtn.innerHTML = '📋 Copy';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(fullText);
+                copyBtn.innerHTML = '✓ Copied';
+                setTimeout(() => copyBtn.innerHTML = '📋 Copy', 2000);
+            };
+
+            // Speak Button (Text-to-Speech)
+            const speakBtn = document.createElement('button');
+            speakBtn.className = 'action-icon-btn';
+            speakBtn.innerHTML = '🔊 Speak';
+            speakBtn.onclick = () => {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(fullText);
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    alert('Text-to-speech not supported on this browser.');
+                }
+            };
+
+            // Thumbs Up
+            const upBtn = document.createElement('button');
+            upBtn.className = 'action-icon-btn';
+            upBtn.innerHTML = '👍';
+            upBtn.onclick = () => {
+                upBtn.classList.toggle('active');
+                downBtn.classList.remove('active');
+            };
+
+            // Thumbs Down
+            const downBtn = document.createElement('button');
+            downBtn.className = 'action-icon-btn';
+            downBtn.innerHTML = '👎';
+            downBtn.onclick = () => {
+                downBtn.classList.toggle('active');
+                upBtn.classList.remove('active');
+            };
+
+            actionsDiv.appendChild(copyBtn);
+            actionsDiv.appendChild(speakBtn);
+            actionsDiv.appendChild(upBtn);
+            actionsDiv.appendChild(downBtn);
+            row.appendChild(actionsDiv);
         }
 
         function exportChat() {
@@ -376,83 +777,4 @@ async def chat(payload: ChatRequest):
                 route_resp = await client.post(GROQ_URL, headers=headers, json={
                     "model": ROUTER_MODEL,
                     "messages": [{"role": "user", "content": routing_prompt}],
-                    "temperature": 0.0,
-                })
-                if route_resp.status_code == 200:
-                    content = route_resp.json()["choices"][0]["message"]["content"]
-                    if "SIMPLE" in content.upper():
-                        route_decision = "SIMPLE"
-        except Exception as e:
-            logger.warning(f"Router exception: {e}")
-
-        final_messages = messages
-        if route_decision == "COMPLEX":
-            async def fetch_model(model_name: str):
-                try:
-                    async with httpx.AsyncClient(timeout=45.0) as client:
-                        resp = await client.post(GROQ_URL, headers=headers, json={
-                            "model": model_name,
-                            "messages": messages,
-                            "stream": False,
-                            "temperature": 0.2,
-                        })
-                        if resp.status_code == 200:
-                            return resp.json()["choices"][0]["message"]["content"]
-                except Exception as e:
-                    logger.warning(f"{model_name} exception: {e}")
-                return None
-
-            raw_responses = await asyncio.gather(*(fetch_model(m) for m in QIQXAR_MODELS))
-            valid_responses = [r for r in raw_responses if r]
-
-            if valid_responses:
-                synthesis_prompt = (
-                    f'You are the Synthesizer. Cross-check these models for the question: "{payload.question}"\n\n'
-                    + "\n".join(
-                        f"--- Model {i+1} ---\n{r}" for i, r in enumerate(valid_responses)
-                    )
-                    + "\n\nCRITICAL: If the models disagree on technical facts, flag the conflict. "
-                      "If you detect structural errors, correct them. Follow the Plain-Language rule strictly."
-                )
-                final_messages = [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": synthesis_prompt},
-                ]
-
-        request_body = {
-            "model": SYNTH_MODEL,
-            "messages": final_messages,
-            "stream": True,
-            "temperature": 0.0,
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=90.0) as client:
-                async with client.stream("POST", GROQ_URL, headers=headers, json=request_body) as upstream:
-                    if upstream.status_code >= 400:
-                        body = (await upstream.aread()).decode(errors="ignore")[:500]
-                        yield f"data: {json.dumps({'error': f'HTTP {upstream.status_code}', 'detail': body})}\n\n".encode()
-                        return
-
-                    async for line in upstream.aiter_lines():
-                        if line.startswith("data:"):
-                            value = line[5:].strip()
-                            if value == "[DONE]":
-                                yield b"data: [DONE]\n\n"
-                                return
-                            try:
-                                packet = json.loads(value)
-                                content = packet["choices"][0]["delta"].get("content", "")
-                                if content:
-                                    yield f"data: {json.dumps({'text': content})}\n\n".encode()
-                            except Exception:
-                                pass
-        except Exception as e:
-            logger.error(f"Stream Error: {e}")
-            yield f"data: {json.dumps({'error': 'Connection failed', 'detail': str(e)})}\n\n".encode()
-
-    return StreamingResponse(
-        stream_events(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+                    "temperature": 0.0
