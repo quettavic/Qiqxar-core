@@ -399,14 +399,6 @@ async def home():
     </div>
 
     <script>
-        const chatBox = document.getElementById('chat-box');
-        const chatContainer = document.getElementById('chat-container');
-        const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const micBtn = document.getElementById('mic-btn');
-        const depthSelect = document.getElementById('depth-select');
-        let history = [];
-
         const SPARKLE_SVG = `
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M12 2C12.3 7.2 16.8 11.7 22 12C16.8 12.3 12.3 16.8 12 22C11.7 16.8 7.2 12.3 2 12C7.2 11.7 11.7 7.2 12 2Z" fill="url(#qiqxarGrad)"/>
@@ -420,22 +412,25 @@ async def home():
             </svg>
         `;
 
-        // Safe Speech Recognition Wrapper
+        let history = [];
         let recognition = null;
         let isListening = false;
-        
+
+        // Initialize Speech Recognition safely
         try {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                recognition = new SpeechRecognition();
+            const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechAPI) {
+                recognition = new SpeechAPI();
                 recognition.continuous = false;
                 recognition.interimResults = true;
                 recognition.lang = 'en-US';
 
                 recognition.onstart = () => {
                     isListening = true;
-                    micBtn.classList.add('listening');
-                    userInput.placeholder = "Listening...";
+                    const mic = document.getElementById('mic-btn');
+                    if (mic) mic.classList.add('listening');
+                    const input = document.getElementById('user-input');
+                    if (input) input.placeholder = "Listening...";
                 };
 
                 recognition.onresult = (event) => {
@@ -443,9 +438,12 @@ async def home():
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         transcript += event.results[i][0].transcript;
                     }
-                    userInput.value = transcript;
-                    userInput.style.height = 'auto';
-                    userInput.style.height = Math.min(userInput.scrollHeight, 160) + 'px';
+                    const input = document.getElementById('user-input');
+                    if (input) {
+                        input.value = transcript;
+                        input.style.height = 'auto';
+                        input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+                    }
                 };
 
                 recognition.onerror = () => { stopMicUI(); };
@@ -457,29 +455,35 @@ async def home():
 
         function stopMicUI() {
             isListening = false;
-            micBtn.classList.remove('listening');
-            userInput.placeholder = "Ask Qiqxar...";
+            const mic = document.getElementById('mic-btn');
+            if (mic) mic.classList.remove('listening');
+            const input = document.getElementById('user-input');
+            if (input) input.placeholder = "Ask Qiqxar...";
         }
 
         function toggleMic() {
-            if (!recognition) {
-                alert("Voice input requires a secure HTTPS connection or is not supported in this browser.");
-                return;
-            }
-            if (isListening) {
-                recognition.stop();
-            } else {
-                try {
-                    recognition.start();
-                } catch (e) {
-                    recognition.stop();
+            try {
+                if (!recognition) {
+                    alert("Voice input requires a secure HTTPS connection or is not supported in this browser.");
+                    return;
                 }
+                if (isListening) {
+                    recognition.stop();
+                } else {
+                    recognition.start();
+                }
+            } catch (err) {
+                alert("Mic Error: " + err.message);
+                stopMicUI();
             }
         }
 
-        userInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+        // Auto-resize input
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.id === 'user-input') {
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+            }
         });
 
         function handleKeyDown(e) {
@@ -490,60 +494,76 @@ async def home():
         }
 
         function useChip(text) {
-            userInput.value = text;
-            sendMessage();
+            const input = document.getElementById('user-input');
+            if (input) {
+                input.value = text;
+                sendMessage();
+            }
         }
 
         function resetChat() {
             history = [];
-            chatBox.innerHTML = `
-                <div id="welcome-screen">
-                    <div>
-                        <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
-                        <div class="greeting-sub">How can Qiqxar help you today?</div>
+            const chatBox = document.getElementById('chat-box');
+            if (chatBox) {
+                chatBox.innerHTML = `
+                    <div id="welcome-screen">
+                        <div>
+                            <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
+                            <div class="greeting-sub">How can Qiqxar help you today?</div>
+                        </div>
+                        <div class="chip-row">
+                            <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
+                            <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
+                            <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
+                        </div>
                     </div>
-                    <div class="chip-row">
-                        <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
-                        <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
-                        <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
-                    </div>
-                </div>
-            `;
+                `;
+            }
         }
 
         function renderMarkdown(text) {
-            if (typeof marked !== 'undefined') {
-                return marked.parse(text);
-            }
+            try {
+                if (typeof marked !== 'undefined' && marked.parse) {
+                    return marked.parse(text);
+                }
+            } catch (e) {}
             return text;
         }
 
         async function sendMessage() {
-            if (isListening && recognition) {
-                try { recognition.stop(); } catch(e) {}
-            }
-
-            const text = userInput.value.trim();
-            if (!text) return;
-
-            const welcome = document.getElementById('welcome-screen');
-            if (welcome) welcome.remove();
-
-            appendUserMessage(text);
-            userInput.value = '';
-            userInput.style.height = 'auto';
-            sendBtn.disabled = true;
-
-            const botId = 'bot-' + Date.now();
-            const botContentDiv = appendBotMessage('<span class="thinking-dots">Cross-checking models...</span>', botId);
-
             try {
+                if (isListening && recognition) {
+                    try { recognition.stop(); } catch(e) {}
+                }
+
+                const input = document.getElementById('user-input');
+                const sendBtn = document.getElementById('send-btn');
+                const chatBox = document.getElementById('chat-box');
+                const chatContainer = document.getElementById('chat-container');
+                const depthSelect = document.getElementById('depth-select');
+
+                if (!input || !sendBtn || !chatBox) return;
+
+                const text = input.value.trim();
+                if (!text) return;
+
+                const welcome = document.getElementById('welcome-screen');
+                if (welcome) welcome.remove();
+
+                appendUserMessage(text);
+                input.value = '';
+                input.style.height = 'auto';
+                sendBtn.disabled = true;
+
+                const botId = 'bot-' + Date.now();
+                const botContentDiv = appendBotMessage('<span class="thinking-dots">Cross-checking models...</span>', botId);
+
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         question: text,
-                        depth: depthSelect.value,
+                        depth: depthSelect ? depthSelect.value : 'standard',
                         history: history
                     })
                 });
@@ -564,11 +584,11 @@ async def home():
                     const { done, value } = await reader.read();
                     if (done) break;
                     buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
+                    const lines = buffer.split('\\n');
                     buffer = lines.pop();
 
                     for (const line of lines) {
-                        if (line.startswith('data: ')) {
+                        if (line.startsWith('data: ')) {
                             const dataStr = line.slice(6).trim();
                             if (dataStr === '[DONE]') break;
                             try {
@@ -576,7 +596,7 @@ async def home():
                                 if (data.text) {
                                     fullText += data.text;
                                     botContentDiv.innerHTML = renderMarkdown(fullText);
-                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
                                 } else if (data.error) {
                                     botContentDiv.innerHTML = `<p><strong>Error:</strong> ${data.error} (${data.detail || ''})</p>`;
                                 }
@@ -590,15 +610,21 @@ async def home():
                     history.push({ role: "assistant", content: fullText });
                 }
 
-            } catch (error) {
-                botContentDiv.innerHTML = `<p><strong>Connection Error:</strong> Could not reach the server.</p>`;
-            }
+                sendBtn.disabled = false;
+                input.focus();
 
-            sendBtn.disabled = false;
-            userInput.focus();
+            } catch (err) {
+                alert("Send Error: " + err.message);
+                const sendBtn = document.getElementById('send-btn');
+                if (sendBtn) sendBtn.disabled = false;
+            }
         }
 
         function appendUserMessage(text) {
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatBox) return;
+
             const row = document.createElement('div');
             row.className = 'user-row';
             const bubble = document.createElement('div');
@@ -606,10 +632,14 @@ async def home():
             bubble.textContent = text;
             row.appendChild(bubble);
             chatBox.appendChild(row);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
         function appendBotMessage(initialHtml, id) {
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatBox) return null;
+
             const row = document.createElement('div');
             row.className = 'bot-row';
             row.id = id;
@@ -625,7 +655,7 @@ async def home():
             row.appendChild(icon);
             row.appendChild(content);
             chatBox.appendChild(row);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
             return content;
         }
     </script>
