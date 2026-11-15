@@ -72,17 +72,14 @@ async def home():
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg-main); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Top Navigation Header */
         header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg-main); }
-        .logo-area { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; letter-spacing: 0.5px; color: var(--text-main); }
-        .logo-badge { background: linear-gradient(135deg, #4285f4, #9b72cb); color: white; font-size: 12px; padding: 2px 8px; border-radius: 12px; font-weight: 500; }
+        .logo-area { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; color: var(--text-main); }
+        .logo-badge { background: linear-gradient(135deg, #4285f4, #9b72cb); color: white; font-size: 12px; padding: 2px 8px; border-radius: 12px; }
         
-        /* Main Chat Area Container */
-        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 24px; scroll-behavior: smooth; }
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
         .chat-width-limiter { width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 24px; }
         
-        /* Message Rows */
-        .message-row { display: flex; gap: 16px; width: 100%; animation: fadeIn 0.3s ease; }
+        .message-row { display: flex; gap: 16px; width: 100%; }
         .message-row.user { justify-content: flex-end; }
         .message-row.bot { justify-content: flex-start; }
         
@@ -94,23 +91,16 @@ async def home():
         .message-row.user .message-bubble { background: var(--user-bubble); color: white; border-top-right-radius: 4px; }
         .message-row.bot .message-bubble { background: var(--bot-bubble); color: var(--text-main); border: 1px solid var(--border); border-top-left-radius: 4px; }
         
-        /* Input Footer Box */
         #input-area { padding: 16px 24px 24px 24px; background: var(--bg-main); display: flex; justify-content: center; }
-        .input-wrapper { width: 100%; max-width: 800px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 24px; padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: border-color 0.2s; }
-        .input-wrapper:focus-within { border-color: var(--accent); }
+        .input-wrapper { width: 100%; max-width: 800px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 24px; padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; }
         
         #user-input { width: 100%; background: transparent; border: none; color: var(--text-main); font-size: 15px; outline: none; resize: none; max-height: 150px; min-height: 24px; font-family: inherit; }
         
         .input-controls { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; }
-        
         select { background: transparent; border: none; color: var(--text-muted); font-size: 13px; outline: none; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
-        select:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
         
-        #send-btn { background: var(--accent); color: #111; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; transition: transform 0.1s, opacity 0.2s; }
-        #send-btn:hover { transform: scale(1.05); }
-        #send-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        #send-btn { background: var(--accent); color: #111; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+        #send-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -140,7 +130,7 @@ async def home():
             <textarea id="user-input" placeholder="Ask Qiqxar anything..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
             <div class="input-controls">
                 <span style="font-size: 12px; color: var(--text-muted);">Multi-LLM Consensus Active</span>
-                <button id="send-btn" onclick="sendMessage()" title="Send Message">↑</button>
+                <button id="send-btn" onclick="sendMessage()">↑</button>
             </div>
         </div>
     </div>
@@ -152,7 +142,6 @@ async def home():
         const depthSelect = document.getElementById('depth-select');
         let history = [];
 
-        // Auto-resize textarea
         userInput.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
@@ -220,8 +209,6 @@ async def home():
                                     fullText += data.text;
                                     botBubble.textContent = fullText;
                                     scrollToBottom();
-                                } else if (data.error) {
-                                    botBubble.textContent = `Error: ${data.error} (${data.detail || ''})`;
                                 }
                             } catch (e) {}
                         }
@@ -278,3 +265,107 @@ async def home():
 </body>
 </html>
     """
+
+@app.post("/api/chat")
+async def chat(payload: ChatRequest):
+    if not API_KEY:
+        raise HTTPException(status_code=503, detail="GROQ_API_KEY is missing on the server environment.")
+
+    headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\n" + DEPTH_GUIDANCE[payload.depth]}]
+    for msg in payload.history:
+        messages.append({"role": msg.role, "content": msg.content})
+    messages.append({"role": "user", "content": payload.question})
+
+    async def stream_events() -> AsyncIterator[bytes]:
+        route_decision = "COMPLEX"
+        routing_prompt = (
+            f"Is this a simple proven fact OR does it require deep technical cross-checking? "
+            f"Question: '{payload.question}'. Reply ONLY with 'SIMPLE' or 'COMPLEX'."
+        )
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                route_resp = await client.post(GROQ_URL, headers=headers, json={
+                    "model": ROUTER_MODEL,
+                    "messages": [{"role": "user", "content": routing_prompt}],
+                    "temperature": 0.0,
+                })
+                if route_resp.status_code == 200:
+                    content = route_resp.json()["choices"][0]["message"]["content"]
+                    if "SIMPLE" in content.upper():
+                        route_decision = "SIMPLE"
+        except Exception as e:
+            logger.warning(f"Router exception: {e}")
+
+        final_messages = messages
+        if route_decision == "COMPLEX":
+            async def fetch_model(model_name: str):
+                try:
+                    async with httpx.AsyncClient(timeout=45.0) as client:
+                        resp = await client.post(GROQ_URL, headers=headers, json={
+                            "model": model_name,
+                            "messages": messages,
+                            "stream": False,
+                            "temperature": 0.2,
+                        })
+                        if resp.status_code == 200:
+                            return resp.json()["choices"][0]["message"]["content"]
+                except Exception as e:
+                    logger.warning(f"{model_name} exception: {e}")
+                return None
+
+            raw_responses = await asyncio.gather(*(fetch_model(m) for m in QIQXAR_MODELS))
+            valid_responses = [r for r in raw_responses if r]
+
+            if valid_responses:
+                synthesis_prompt = (
+                    f'You are the Synthesizer. Cross-check these models for the question: "{payload.question}"\n\n'
+                    + "\n".join(
+                        f"--- Model {i+1} ---\n{r}" for i, r in enumerate(valid_responses)
+                    )
+                    + "\n\nCRITICAL: If the models disagree on technical facts, flag the conflict. "
+                      "If you detect structural errors, correct them. Follow the Plain-Language rule strictly."
+                )
+                final_messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": synthesis_prompt},
+                ]
+
+        request_body = {
+            "model": SYNTH_MODEL,
+            "messages": final_messages,
+            "stream": True,
+            "temperature": 0.0,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                async with client.stream("POST", GROQ_URL, headers=headers, json=request_body) as upstream:
+                    if upstream.status_code >= 400:
+                        body = (await upstream.aread()).decode(errors="ignore")[:500]
+                        yield f"data: {json.dumps({'error': f'HTTP {upstream.status_code}', 'detail': body})}\n\n".encode()
+                        return
+
+                    async for line in upstream.aiter_lines():
+                        if line.startswith("data:"):
+                            value = line[5:].strip()
+                            if value == "[DONE]":
+                                yield b"data: [DONE]\n\n"
+                                return
+                            try:
+                                packet = json.loads(value)
+                                content = packet["choices"][0]["delta"].get("content", "")
+                                if content:
+                                    yield f"data: {json.dumps({'text': content})}\n\n".encode()
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.error(f"Stream Error: {e}")
+            yield f"data: {json.dumps({'error': 'Connection failed', 'detail': str(e)})}\n\n".encode()
+
+    return StreamingResponse(
+        stream_events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
