@@ -13,12 +13,12 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-# 100% verified, universally available Groq models
-ROUTER_MODEL = "llama-3.1-8b-instant"
-SYNTH_MODEL = "llama-3.1-8b-instant"
+# Verified production Groq / OpenAI GPT-OSS models
+ROUTER_MODEL = "openai/gpt-oss-20b"
+SYNTH_MODEL = "openai/gpt-oss-120b"
 QIQXAR_MODELS = [
-    "llama-3.1-8b-instant",
-    "gemma2-9b-it",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
 ]
 
 app = FastAPI(title="Qiqxar - Focus 1.0")
@@ -266,6 +266,75 @@ async def home():
         }
         .bot-content pre code { background: transparent; padding: 0; color: #e3e3e3; }
 
-        /* Bot Action Bar (Copy, Speak, Thumbs Up/Down) */
         .bot-actions { display: flex; gap: 8px; margin-left: 40px; align-items: center; }
-        .action-icon-btn { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; display
+        .action-icon-btn { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px; transition: background 0.2s, color 0.2s; }
+        .action-icon-btn:hover { background: var(--bg-surface-hover); color: var(--accent-blue); }
+        .action-icon-btn.active { color: var(--accent-blue); }
+
+        .thinking-dots {
+            color: var(--text-secondary);
+            font-style: italic;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        #input-dock {
+            padding: 10px 16px 20px 16px;
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .pill-box {
+            width: 100%;
+            max-width: 760px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 28px;
+            padding: 8px 12px 8px 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .pill-box:focus-within {
+            background: var(--bg-surface-hover);
+            border-color: rgba(168, 199, 250, 0.4);
+        }
+
+        #user-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 16px;
+            line-height: 1.5;
+            max-height: 160px;
+            min-height: 24px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            padding: 6px 0;
+        }
+
+        #user-input::placeholder { color: var(--text-secondary); }
+
+        .action-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        #mic-btn { background: transparent; color: var(--text-primary); }
+        #mic-btn:hover { background: rgba(255, 255, 255, 0.08); }
+        #mic-btn.recording {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            animation
