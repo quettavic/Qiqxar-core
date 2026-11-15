@@ -13,10 +13,10 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-# Universal, high-speed Groq production model
+# 100% verified, lightning-fast Groq production model
 MODEL_NAME = "llama-3.1-8b-instant"
 
-app = FastAPI(title="Qiqxar - Focus 1.0")
+app = FastAPI(title="Qiqxar — No noise. Just information.")
 
 SYSTEM_PROMPT = """You are Qiqxar, an ethical AI assistant.
 1. Plain-Language Closure: Do not use jargon. If a complex term is necessary, define it instantly in plain words. Leave zero undefined terms standing for a non-technical user.
@@ -294,4 +294,162 @@ async def home():
         }
 
         .pill-box:focus-within {
-            background
+            background: var(--bg-surface-hover);
+            border-color: rgba(168, 199, 250, 0.4);
+        }
+
+        #user-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 16px;
+            line-height: 1.5;
+            max-height: 160px;
+            min-height: 24px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            padding: 6px 0;
+        }
+
+        #user-input::placeholder { color: var(--text-secondary); }
+
+        .action-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        #mic-btn { background: transparent; color: var(--text-primary); }
+        #mic-btn:hover { background: rgba(255, 255, 255, 0.08); }
+        #mic-btn.recording {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            animation: pulse 1.5s infinite;
+        }
+
+        #send-btn {
+            background: var(--accent-blue);
+            color: #131314;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #send-btn:disabled {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text-secondary);
+        }
+
+        .disclaimer {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <span>Qiqxar</span>
+            <span class="brand-tag">Focus 1.0</span>
+        </div>
+        <div class="header-actions">
+            <button class="icon-btn" onclick="exportChat()" title="Download Chat Transcript">📥 Download Chat</button>
+            <button class="icon-btn" onclick="resetChat()" title="Start a new chat">+ New</button>
+        </div>
+    </header>
+
+    <div id="chat-container">
+        <div class="canvas-column" id="chat-box">
+            <div id="welcome-screen">
+                <div>
+                    <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
+                    <div class="greeting-sub">How can Qiqxar help you today?</div>
+                </div>
+                <div class="chip-row">
+                    <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
+                    <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
+                    <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="input-dock">
+        <div class="pill-box">
+            <textarea id="user-input" placeholder="Ask Qiqxar..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+            <button id="mic-btn" class="action-circle" onclick="toggleMic()" title="Voice Command">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" x2="12" y1="19" y2="22"/>
+                </svg>
+            </button>
+            <button id="send-btn" class="action-circle" onclick="sendMessage()" title="Send">↑</button>
+        </div>
+        <div class="disclaimer">Qiqxar can make mistakes. Verify important information.</div>
+    </div>
+
+    <script>
+        const SPARKLE_SVG = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C12.3 7.2 16.8 11.7 22 12C16.8 12.3 12.3 16.8 12 22C11.7 16.8 7.2 12.3 2 12C7.2 11.7 11.7 7.2 12 2Z" fill="url(#qiqxarGrad)"/>
+                <defs>
+                    <linearGradient id="qiqxarGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#4285F4"/>
+                        <stop offset="0.5" stop-color="#9B72CB"/>
+                        <stop offset="1" stop-color="#D96570"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        `;
+
+        let history = [];
+        let recognition = null;
+        let isRecording = false;
+        let shouldAutoSend = false;
+
+        try {
+            const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechAPI) {
+                recognition = new SpeechAPI();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = function() {
+                    isRecording = true;
+                    const mic = document.getElementById('mic-btn');
+                    if (mic) mic.classList.add('recording');
+                    const input = document.getElementById('user-input');
+                    if (input) input.placeholder = "Listening...";
+                };
+
+                recognition.onresult = function(event) {
+                    const speechResult = event.results[0][0].transcript;
+                    const input = document.getElementById('user-input');
+                    if (input) {
+                        input.value = speechResult;
+                        input.style.height = 'auto';
+                        input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+                    }
+                    shouldAutoSend = true;
+                };
+
+                recognition.onerror = function(event) {
+                    console.error("Speech recognition error:", event.error);
+                    shouldAutoSend = false;
+                    stopMicUI();
+                };
+
+                recognition.onend = function() {
+                    stopMicUI();
+                    if (shouldAutoSend && document.getElementById('user-input').value.trim
