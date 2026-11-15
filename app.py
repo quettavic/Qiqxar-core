@@ -13,14 +13,14 @@ logger = logging.getLogger("uvicorn.error")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
-ROUTER_MODEL = "llama-3.1-8b-instant"
-SYNTH_MODEL = "llama-3.3-70b-versatile"
+ROUTER_MODEL = "openai/gpt-oss-20b"
+SYNTH_MODEL = "openai/gpt-oss-120b"
 QIQXAR_MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "gemma2-9b-it",
-    "mixtral-8x7b-32768",
-    "qwen-qwq-32b",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.6-27b",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
 ]
 
 app = FastAPI(title="LenzAI - Focus 1.0")
