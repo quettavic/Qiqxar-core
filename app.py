@@ -444,4 +444,345 @@ async def home():
                     shouldAutoSend = true;
                 };
 
-                recognition.onerror =
+                recognition.onend = function() {
+                    stopMicUI();
+                    if (shouldAutoSend && document.getElementById('user-input').value.trim() !== '') {
+                        shouldAutoSend = false;
+                        sendMessage();
+                    }
+                };
+            }
+        } catch (e) {
+            recognition = null;
+        }
+
+        function stopMicUI() {
+            isRecording = false;
+            const mic = document.getElementById('mic-btn');
+            if (mic) mic.classList.remove('recording');
+            const input = document.getElementById('user-input');
+            if (input) input.placeholder = "Ask Qiqxar...";
+        }
+
+        function toggleMic() {
+            if (!recognition) {
+                alert("Speech recognition is not supported on this browser.");
+                return;
+            }
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                shouldAutoSend = false;
+                recognition.start();
+            }
+        }
+
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.id === 'user-input') {
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+            }
+        });
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function useChip(text) {
+            const input = document.getElementById('user-input');
+            if (input) {
+                input.value = text;
+                sendMessage();
+            }
+        }
+
+        function resetChat() {
+            history = [];
+            const chatBox = document.getElementById('chat-box');
+            if (chatBox) {
+                chatBox.innerHTML = `
+                    <div id="welcome-screen">
+                        <div>
+                            <div class="greeting-title"><span class="gradient-text">Hello.</span></div>
+                            <div class="greeting-sub">How can Qiqxar help you today?</div>
+                        </div>
+                        <div class="chip-row">
+                            <button class="suggestion-chip" onclick="useChip('Explain how multi-model consensus works in simple words')">How does consensus work?</button>
+                            <button class="suggestion-chip" onclick="useChip('Give me a step-by-step checklist for framing a 10x10 shed')">10x10 shed framing steps</button>
+                            <button class="suggestion-chip" onclick="useChip('Compare the pros and cons of magnesium glycinate vs citrate')">Magnesium types comparison</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderMarkdown(text) {
+            try {
+                if (typeof marked !== 'undefined' && marked.parse) {
+                    return marked.parse(text);
+                }
+            } catch (e) {}
+            return text;
+        }
+
+        async function sendMessage() {
+            if (isRecording && recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
+
+            const input = document.getElementById('user-input');
+            const sendBtn = document.getElementById('send-btn');
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+
+            if (!input || !sendBtn || !chatBox) return;
+
+            const text = input.value.trim();
+            if (!text) return;
+
+            const welcome = document.getElementById('welcome-screen');
+            if (welcome) welcome.remove();
+
+            appendUserMessage(text);
+            input.value = '';
+            input.style.height = 'auto';
+            sendBtn.disabled = true;
+
+            const botId = 'bot-' + Date.now();
+            const botContentDiv = appendBotMessage('<span class="thinking-dots">Thinking...</span>', botId);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question: text,
+                        history: history
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    botContentDiv.innerHTML = `<p style="color: #f87171;"><strong>Error (${response.status}):</strong> ${errData.detail || 'Server communication failed.'}</p>`;
+                    sendBtn.disabled = false;
+                    input.focus();
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = "";
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6);
+                            if (dataStr === '[DONE]') break;
+                            try {
+                                const data = JSON.parse(dataStr);
+                                if (data.text) {
+                                    fullText += data.text;
+                                    botContentDiv.innerHTML = renderMarkdown(fullText);
+                                    if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+                                } else if (data.error) {
+                                    botContentDiv.innerHTML = `<p style="color: #f87171;"><strong>Error:</strong> ${data.error} - ${data.detail || ''}</p>`;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+
+                if (fullText) {
+                    history.push({ role: "user", content: text });
+                    history.push({ role: "assistant", content: fullText });
+                    attachBotActions(botId, fullText);
+                }
+
+            } catch (error) {
+                botContentDiv.innerHTML = `<p style="color: #f87171;"><strong>Network Error:</strong> Could not reach the server (${error.message}).</p>`;
+            }
+            sendBtn.disabled = false;
+            input.focus();
+        }
+
+        function appendUserMessage(text) {
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatBox) return;
+
+            const row = document.createElement('div');
+            row.className = 'user-row';
+            const bubble = document.createElement('div');
+            bubble.className = 'user-bubble';
+            bubble.textContent = text;
+            row.appendChild(bubble);
+            chatBox.appendChild(row);
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function appendBotMessage(initialHtml, id) {
+            const chatBox = document.getElementById('chat-box');
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatBox) return null;
+
+            const row = document.createElement('div');
+            row.className = 'bot-row';
+            row.id = id;
+
+            const mainDiv = document.createElement('div');
+            mainDiv.className = 'bot-main-content';
+
+            const icon = document.createElement('div');
+            icon.className = 'sparkle-icon';
+            icon.innerHTML = SPARKLE_SVG;
+
+            const content = document.createElement('div');
+            content.className = 'bot-content';
+            content.innerHTML = initialHtml;
+
+            mainDiv.appendChild(icon);
+            mainDiv.appendChild(content);
+            row.appendChild(mainDiv);
+            chatBox.appendChild(row);
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            return content;
+        }
+
+        function attachBotActions(botId, fullText) {
+            const row = document.getElementById(botId);
+            if (!row) return;
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'bot-actions';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'action-icon-btn';
+            copyBtn.innerHTML = '📋 Copy';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(fullText);
+                copyBtn.innerHTML = '✓ Copied';
+                setTimeout(() => copyBtn.innerHTML = '📋 Copy', 2000);
+            };
+
+            const speakBtn = document.createElement('button');
+            speakBtn.className = 'action-icon-btn';
+            speakBtn.innerHTML = '🔊 Speak';
+            speakBtn.onclick = () => {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(fullText);
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    alert('Text-to-speech not supported on this browser.');
+                }
+            };
+
+            const upBtn = document.createElement('button');
+            upBtn.className = 'action-icon-btn';
+            upBtn.innerHTML = '👍';
+            upBtn.onclick = () => {
+                upBtn.classList.toggle('active');
+                downBtn.classList.remove('active');
+            };
+
+            const downBtn = document.createElement('button');
+            downBtn.className = 'action-icon-btn';
+            downBtn.innerHTML = '👎';
+            downBtn.onclick = () => {
+                downBtn.classList.toggle('active');
+                upBtn.classList.remove('active');
+            };
+
+            actionsDiv.appendChild(copyBtn);
+            actionsDiv.appendChild(speakBtn);
+            actionsDiv.appendChild(upBtn);
+            actionsDiv.appendChild(downBtn);
+            row.appendChild(actionsDiv);
+        }
+
+        function exportChat() {
+            if (history.length === 0) {
+                alert("No conversation history to export yet.");
+                return;
+            }
+            let transcript = "Qiqxar Chat Transcript\n=====================\n\n";
+            history.forEach(item => {
+                const role = item.role === 'user' ? 'You' : 'Qiqxar';
+                transcript += `${role}: ${item.content}\n\n`;
+            });
+
+            const blob = new Blob([transcript], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Qiqxar-Chat-${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
+"""
+
+@app.post("/api/chat")
+async def chat(payload: ChatRequest):
+    if not API_KEY:
+        raise HTTPException(status_code=503, detail="GROQ_API_KEY environment variable is missing on the server.")
+
+    headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for msg in payload.history:
+        messages.append({"role": msg.role, "content": msg.content})
+    messages.append({"role": "user", "content": payload.question})
+
+    request_body = {
+        "model": MODEL_NAME,
+        "messages": messages,
+        "stream": True,
+        "temperature": 0.2,
+    }
+
+    async def stream_events() -> AsyncIterator[bytes]:
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream("POST", GROQ_URL, headers=headers, json=request_body) as upstream:
+                    if upstream.status_code >= 400:
+                        body = (await upstream.aread()).decode(errors="ignore")[:500]
+                        yield f"data: {json.dumps({'error': f'HTTP {upstream.status_code}', 'detail': body})}\n\n".encode()
+                        return
+
+                    async for line in upstream.aiter_lines():
+                        if line.startswith("data:"):
+                            value = line[5:].strip()
+                            if value == "[DONE]":
+                                yield b"data: [DONE]\n\n"
+                                return
+                            try:
+                                packet = json.loads(value)
+                                content = packet["choices"][0]["delta"].get("content", "")
+                                if content:
+                                    yield f"data: {json.dumps({'text': content})}\n\n".encode()
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.error(f"Stream Error: {e}")
+            yield f"data: {json.dumps({'error': 'Connection failed', 'detail': str(e)})}\n\n".encode()
+
+    return StreamingResponse(
+        stream_events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
