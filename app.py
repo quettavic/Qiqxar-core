@@ -50,55 +50,23 @@ class ChatRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    return """
+    return r"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Qiqxar — No noise. Just information.</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            background: #0f172a; 
-            color: #e2e8f0; 
-            margin: 0; 
-            padding: 20px; 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh; 
-            box-sizing: border-box; 
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
         
-        header { 
-            background: #1e293b; 
-            border: 1px solid #475569; 
-            border-radius: 12px; 
-            padding: 12px 20px; 
-            margin-bottom: 15px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
-        }
+        header { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 12px 20px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
         .logo-area { display: flex; align-items: center; gap: 12px; }
         .logo-icon { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #0ea5e9, #6366f1); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; color: white; box-shadow: 0 0 12px rgba(14, 165, 233, 0.4); }
         h1 { font-size: 1.2rem; font-weight: 600; margin: 0; }
         .tagline { font-size: 0.75rem; color: #94a3b8; }
 
-        #chat-box { 
-            flex: 1; 
-            background: #1e293b; 
-            border-radius: 12px; 
-            padding: 20px; 
-            overflow-y: auto; 
-            margin-bottom: 15px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
-            display: flex; 
-            flex-direction: column; 
-            gap: 15px; 
-        }
+        #chat-box { flex: 1; background: #1e293b; border-radius: 12px; padding: 20px; overflow-y: auto; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px; }
         .message-wrapper { display: flex; flex-direction: column; max-width: 85%; }
         .message-wrapper.user { align-self: flex-end; }
         .message-wrapper.bot { align-self: flex-start; }
@@ -107,7 +75,6 @@ async def home():
         .user .message { background: #0284c7; color: white; border-bottom-right-radius: 4px; }
         .bot .message { background: #334155; color: #f8fafc; border-bottom-left-radius: 4px; }
         
-        /* Bot Action Bar (Copy, Speak, Thumbs Up/Down) */
         .bot-actions { display: flex; gap: 8px; margin-top: 6px; margin-left: 8px; align-items: center; }
         .action-icon-btn { background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px; transition: background 0.2s, color 0.2s; }
         .action-icon-btn:hover { background: rgba(255,255,255,0.08); color: #0ea5e9; }
@@ -151,184 +118,9 @@ async def home():
     </div>
     
     <div id="controls">
-        <!-- Voice Input Microphone Button -->
         <button id="micBtn" class="icon-btn" onclick="toggleMic()" title="Voice Command">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                 <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
                 <line x1="12" y1="19" x2="12" y2="23"></line>
-                <line x1="8" y1="23" x2="16" y2="23"></line>
-            </svg>
-        </button>
-
-        <input type="text" id="user-input" placeholder="Ask Qiqxar anything or use mic..." onkeypress="handleKeyPress(event)">
-        <button id="send-btn" onclick="sendMessage()">Send</button>
-    </div>
-
-    <div class="disclaimer">Qiqxar can make mistakes. Verify important information.</div>
-
-    <script>
-        const chatBox = document.getElementById('chat-box');
-        const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const micBtn = document.getElementById('micBtn');
-        let history = [];
-        let recognition = null;
-        let isRecording = false;
-        let shouldAutoSend = false;
-
-        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
-
-        function toggleMic() {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                alert("Speech recognition is not supported on this browser.");
-                return;
-            }
-
-            if (isRecording) {
-                recognition.stop();
-                return;
-            }
-
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-            shouldAutoSend = false;
-
-            recognition.onstart = function() {
-                isRecording = true;
-                micBtn.classList.add('recording');
-            };
-
-            recognition.onresult = function(event) {
-                const speechResult = event.results[0][0].transcript;
-                userInput.value = speechResult;
-                shouldAutoSend = true;
-            };
-
-            recognition.onerror = function(event) {
-                console.error("Speech recognition error:", event.error);
-                shouldAutoSend = false;
-                stopMicState();
-            };
-
-            recognition.onend = function() {
-                stopMicState();
-                if (shouldAutoSend && userInput.value.trim() !== '') {
-                    shouldAutoSend = false;
-                    sendMessage();
-                }
-            };
-
-            recognition.start();
-        }
-
-        function stopMicState() {
-            isRecording = false;
-            micBtn.classList.remove('recording');
-        }
-
-        async function sendMessage() {
-            if (isRecording && recognition) {
-                recognition.stop();
-                return;
-            }
-
-            const text = userInput.value.trim();
-            if (!text) return;
-            
-            appendMessage('user', text);
-            userInput.value = '';
-            sendBtn.disabled = true;
-
-            const typingId = 'typing-' + Date.now();
-            appendMessage('bot', '<em>Thinking...</em>', typingId, false);
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        question: text, 
-                        history: history 
-                    })
-                });
-
-                document.getElementById(typingId)?.closest('.message-wrapper').remove();
-                const botMsgId = 'bot-' + Date.now();
-                appendMessage('bot', '', botMsgId, true);
-                const botDiv = document.getElementById(botMsgId);
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullText = "";
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const dataStr = line.slice(6);
-                            if (dataStr === '[DONE]') break;
-                            try {
-                                const data = JSON.parse(dataStr);
-                                if (data.text) {
-                                    fullText += data.text;
-                                    botDiv.innerHTML = `<strong>Qiqxar:</strong> ${fullText}`;
-                                    chatBox.scrollTop = chatBox.scrollHeight;
-                                } else if (data.error) {
-                                    botDiv.innerHTML = `<strong>Error:</strong> ${data.error}`;
-                                }
-                            } catch (e) {}
-                        }
-                    }
-                }
-                
-                history.push({ role: "user", content: text });
-                history.push({ role: "assistant", content: fullText });
-
-            } catch (error) {
-                document.getElementById(typingId)?.closest('.message-wrapper')?.remove();
-                appendMessage('bot', '<strong>System Error:</strong> Could not reach the server.', null, false);
-            }
-            sendBtn.disabled = false;
-            userInput.focus();
-        }
-
-        function appendMessage(sender, text, id = null, showActions = false) {
-            const wrapper = document.createElement('div');
-            wrapper.className = `message-wrapper ${sender}`;
-
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message`;
-            if (id) msgDiv.id = id;
-            msgDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'Qiqxar'}</strong> ${text}`;
-            wrapper.appendChild(msgDiv);
-
-            if (showActions && sender === 'bot') {
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'bot-actions';
-                
-                // Copy Button
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'action-icon-btn';
-                copyBtn.innerHTML = '📋 Copy';
-                copyBtn.onclick = () => {
-                    const cleanText = msgDiv.innerText.replace('Qiqxar:', '').trim();
-                    navigator.clipboard.writeText(cleanText);
-                    copyBtn.innerHTML = '✓ Copied';
-                    setTimeout(() => copyBtn.innerHTML = '📋 Copy', 2000);
-                };
-
-                // Speak Button (Text-to-Speech)
-                const speakBtn = document.createElement('button');
-                speakBtn.className = 'action-icon-btn';
-                speakBtn.innerHTML = '🔊 Speak';
-                speakBtn.onclick = () => {
-                    if ('speechSynthesis' in window) {
-                        window.speechSynthesis.cancel();
-                        const
+                <line x1="8" y1="23" x2="16" y2
