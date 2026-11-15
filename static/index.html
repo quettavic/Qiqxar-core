@@ -1,309 +1,1628 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qiqxar — No noise. Just information.</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
-        
-        header { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 12px 20px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-        .logo-area { display: flex; align-items: center; gap: 12px; }
-        .logo-icon { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #0ea5e9, #6366f1); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; color: white; box-shadow: 0 0 12px rgba(14, 165, 233, 0.4); }
-        h1 { font-size: 1.2rem; font-weight: 600; margin: 0; }
-        .tagline { font-size: 0.75rem; color: #94a3b8; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#212121">
+<title>Qiqxar — Information Without Noise</title>
 
-        #chat-box { flex: 1; background: #1e293b; border-radius: 12px; padding: 20px; overflow-y: auto; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px; }
-        .message-wrapper { display: flex; flex-direction: column; max-width: 85%; }
-        .message-wrapper.user { align-self: flex-end; }
-        .message-wrapper.bot { align-self: flex-start; }
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
 
-        .message { padding: 12px 16px; border-radius: 18px; line-height: 1.5; font-size: 16px; white-space: pre-wrap; }
-        .user .message { background: #0284c7; color: white; border-bottom-right-radius: 4px; }
-        .bot .message { background: #334155; color: #f8fafc; border-bottom-left-radius: 4px; }
-        
-        /* Bot Action Bar (Copy, Speak, Thumbs Up/Down) */
-        .bot-actions { display: flex; gap: 8px; margin-top: 6px; margin-left: 8px; align-items: center; }
-        .action-icon-btn { background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px; transition: background 0.2s, color 0.2s; }
-        .action-icon-btn:hover { background: rgba(255,255,255,0.08); color: #0ea5e9; }
-        .action-icon-btn.active { color: #0ea5e9; }
+<style>
+:root {
+    --bg: #212121;
+    --sidebar: #171717;
+    --surface: #2f2f2f;
+    --surface-hover: #383838;
+    --text: #ececec;
+    --muted: #a0a0a0;
+    --border: rgba(255,255,255,.09);
+    --accent: #a8c7fa;
+}
 
-        #controls { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
-        #user-input { flex: 1; padding: 15px; border: 1px solid #475569; border-radius: 10px; font-size: 16px; background: #1e293b; color: white; outline: none; }
-        #user-input:focus { border-color: #0ea5e9; }
-        
-        button { padding: 15px 25px; background: #0ea5e9; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
-        button:disabled { background: #475569; cursor: not-allowed; }
-        
-        .icon-btn { background: #1e293b; border: 1px solid #475569; color: #94a3b8; padding: 15px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .icon-btn:hover { border-color: #0ea5e9; color: white; }
-        .icon-btn.recording { border-color: #ef4444; color: #ef4444; background-color: rgba(239, 68, 68, 0.15); animation: pulse 1.5s infinite; }
-        
-        .header-btn { background: #0f172a; border: 1px solid #475569; color: #cbd5e1; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: normal; cursor: pointer; transition: all 0.2s; }
-        .header-btn:hover { border-color: #0ea5e9; color: white; }
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
-        .disclaimer { font-size: 0.72rem; color: #64748b; text-align: center; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    overflow: hidden;
+}
 
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-    </style>
+button, textarea, input {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+    color: inherit;
+}
+
+.app {
+    display: flex;
+    height: 100dvh;
+    width: 100%;
+}
+
+/* SIDEBAR */
+
+.sidebar {
+    width: 270px;
+    min-width: 270px;
+    background: var(--sidebar);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 12px;
+    transition: margin .25s;
+    z-index: 20;
+}
+
+.sidebar.closed {
+    margin-left: -270px;
+}
+
+.sidebar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 5px 22px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: -.5px;
+}
+
+.logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#4285f4,#9b72cb,#d96570);
+    display: grid;
+    place-items: center;
+    font-weight: bold;
+    color: white;
+    font-size: 19px;
+}
+
+.small-btn {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 9px;
+    border-radius: 9px;
+    font-size: 18px;
+}
+
+.small-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+
+.sidebar-action {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 0;
+    background: transparent;
+    padding: 12px;
+    border-radius: 10px;
+    text-align: left;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.sidebar-action:hover {
+    background: var(--surface-hover);
+}
+
+.sidebar-action .symbol {
+    width: 20px;
+    text-align: center;
+    font-size: 17px;
+}
+
+.search-wrap {
+    margin: 7px 0 20px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    font-size: 13px;
+}
+
+.search-input:focus {
+    border-color: var(--accent);
+}
+
+.section-label {
+    color: var(--muted);
+    font-size: 12px;
+    padding: 8px 10px;
+}
+
+#history-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px;
+    border-radius: 8px;
+}
+
+.history-item.active,
+.history-item:hover {
+    background: var(--surface-hover);
+}
+
+.history-open {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: 0;
+    padding: 10px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.history-menu {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    padding: 7px;
+    border-radius: 6px;
+}
+
+.history-menu:hover {
+    background: #444;
+}
+
+.sidebar-bottom {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+.profile-button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    width: 100%;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    text-align: left;
+}
+
+.profile-button:hover {
+    background: var(--surface-hover);
+}
+
+.profile-avatar {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    background: #4b5563;
+    border-radius: 50%;
+    font-weight: bold;
+}
+
+/* MAIN AREA */
+
+.main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.topbar {
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.top-left, .top-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.top-title {
+    font-size: 15px;
+    font-weight: 550;
+}
+
+.status-label {
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 9px;
+}
+
+.chat-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 20px 35px;
+    scroll-behavior: smooth;
+}
+
+.chat-column {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+/* WELCOME */
+
+#welcome-screen {
+    margin: auto 0;
+    padding: 8vh 0 4vh;
+}
+
+.welcome-title {
+    font-size: clamp(30px,5vw,42px);
+    font-weight: 550;
+    letter-spacing: -1.5px;
+    margin-bottom: 10px;
+}
+
+.gradient-text {
+    background: linear-gradient(100deg,#8ab4f8,#c58af9,#e69aab);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.welcome-subtitle {
+    color: var(--muted);
+    font-size: 20px;
+    margin-bottom: 32px;
+}
+
+.suggestions {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 10px;
+}
+
+.suggestion {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 15px;
+    text-align: left;
+    border-radius: 13px;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.suggestion:hover {
+    background: var(--surface-hover);
+}
+
+.suggestion strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+/* MESSAGES */
+
+.user-row {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.user-bubble {
+    max-width: 82%;
+    background: #303030;
+    border-radius: 21px;
+    border-bottom-right-radius: 5px;
+    padding: 12px 17px;
+    font-size: 15px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.bot-row {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.bot-main {
+    display: flex;
+    gap: 13px;
+    align-items: flex-start;
+}
+
+.bot-icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#4285f4,#9b72cb,#d96570);
+    display: grid;
+    place-items: center;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.bot-content {
+    min-width: 0;
+    flex: 1;
+    font-size: 15px;
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+}
+
+.bot-content p {
+    margin-bottom: 13px;
+}
+
+.bot-content p:last-child {
+    margin-bottom: 0;
+}
+
+.bot-content h1,
+.bot-content h2,
+.bot-content h3 {
+    margin: 18px 0 9px;
+    line-height: 1.35;
+}
+
+.bot-content ul,
+.bot-content ol {
+    margin: 10px 0 15px 24px;
+}
+
+.bot-content li {
+    margin-bottom: 6px;
+}
+
+.bot-content pre {
+    overflow-x: auto;
+    background: #171717;
+    border: 1px solid var(--border);
+    padding: 14px;
+    border-radius: 10px;
+    margin: 12px 0;
+}
+
+.bot-content code {
+    background: #343434;
+    padding: 2px 5px;
+    border-radius: 5px;
+    font-size: 13px;
+}
+
+.bot-content pre code {
+    background: transparent;
+    padding: 0;
+}
+
+.bot-content blockquote {
+    border-left: 3px solid #777;
+    padding-left: 13px;
+    color: var(--muted);
+    margin: 12px 0;
+}
+
+.thinking {
+    color: var(--muted);
+    font-style: italic;
+    animation: pulse 1.4s infinite;
+}
+
+@keyframes pulse {
+    50% { opacity: .4; }
+}
+
+.bot-actions {
+    display: flex;
+    gap: 7px;
+    margin-left: 40px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 7px;
+}
+
+.action-btn:hover,
+.action-btn.active {
+    background: var(--surface-hover);
+    color: var(--accent);
+}
+
+/* COMPOSER */
+
+.composer-area {
+    width: 100%;
+    padding: 12px 20px 17px;
+    background: var(--bg);
+    flex-shrink: 0;
+}
+
+.composer-inner {
+    width: 100%;
+    max-width: 800px;
+    margin: auto;
+}
+
+.composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 9px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 25px;
+    padding: 10px 11px 10px 17px;
+}
+
+.composer:focus-within {
+    border-color: rgba(168,199,250,.45);
+}
+
+#user-input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: 0;
+    outline: none;
+    resize: none;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+    max-height: 160px;
+    min-height: 27px;
+    padding: 5px 0;
+}
+
+#user-input::placeholder {
+    color: var(--muted);
+}
+
+.composer-btn {
+    width: 37px;
+    height: 37px;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    color: var(--text);
+    font-size: 19px;
+}
+
+.composer-btn:hover {
+    background: #484848;
+}
+
+#mic-btn.recording {
+    color: #ff7373;
+    background: rgba(255,80,80,.15);
+}
+
+#send-btn {
+    background: var(--text);
+    color: #202020;
+    font-weight: bold;
+}
+
+#send-btn:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+}
+
+.disclaimer {
+    font-size: 11px;
+    text-align: center;
+    color: var(--muted);
+    padding-top: 9px;
+}
+
+/* MENUS */
+
+.popup {
+    position: absolute;
+    display: none;
+    z-index: 50;
+    background: #303030;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 30px rgba(0,0,0,.4);
+    border-radius: 12px;
+    padding: 6px;
+    min-width: 185px;
+}
+
+.popup.open {
+    display: block;
+}
+
+.popup button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    padding: 10px;
+    border-radius: 7px;
+    font-size: 13px;
+}
+
+.popup button:hover {
+    background: #454545;
+}
+
+#settings-popup {
+    bottom: 70px;
+    left: 12px;
+}
+
+#history-popup {
+    right: 8px;
+    top: 35px;
+}
+
+#mobile-overlay {
+    display: none;
+}
+
+/* MOBILE */
+
+@media(max-width:700px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 285px;
+        min-width: 285px;
+        box-shadow: 10px 0 30px rgba(0,0,0,.3);
+    }
+
+    .sidebar.closed {
+        margin-left: -300px;
+    }
+
+    #mobile-overlay.visible {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.5);
+        z-index: 15;
+    }
+
+    .topbar {
+        padding: 0 12px;
+    }
+
+    .chat-container {
+        padding: 20px 15px;
+    }
+
+    .composer-area {
+        padding: 9px 10px 13px;
+    }
+
+    .suggestions {
+        grid-template-columns: 1fr;
+    }
+
+    .welcome-title {
+        font-size: 32px;
+    }
+
+    .welcome-subtitle {
+        font-size: 17px;
+    }
+
+    .user-bubble {
+        max-width: 90%;
+    }
+
+    .status-label {
+        display: none;
+    }
+}
+</style>
 </head>
-<body>
-    <header>
-        <div class="logo-area">
-            <div class="logo-icon">Q</div>
-            <div>
-                <h1>Qiqxar</h1>
-                <div class="tagline">No noise. Just information.</div>
-            </div>
-        </div>
-        <button class="header-btn" onclick="exportChat()" title="Download Chat Transcript">📥 Download Chat</button>
-    </header>
 
-    <div id="chat-box">
-        <div class="message-wrapper bot">
-            <div class="message"><strong>Qiqxar:</strong> System online. How can I help you analyze your data today?</div>
+<body>
+
+<div class="app">
+
+    <div id="mobile-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar" id="sidebar">
+
+        <div class="sidebar-top">
+            <div class="brand">
+                <div class="logo">Q</div>
+                Qiqxar
+            </div>
+            <button class="small-btn" onclick="toggleSidebar()" title="Close menu">☰</button>
         </div>
-    </div>
-    
-    <div id="controls">
-        <!-- Voice Input Microphone Button -->
-        <button id="micBtn" class="icon-btn" onclick="toggleMic()" title="Voice Command">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
-                <line x1="12" y1="19" x2="12" y2="23"></line>
-                <line x1="8" y1="23" x2="16" y2="23"></line>
-            </svg>
+
+        <button class="sidebar-action" onclick="newChat()">
+            <span class="symbol">＋</span>
+            New chat
         </button>
 
-        <input type="text" id="user-input" placeholder="Ask Qiqxar anything or use mic..." onkeypress="handleKeyPress(event)">
-        <button id="send-btn" onclick="sendMessage()">Send</button>
-    </div>
+        <div class="search-wrap">
+            <input
+                id="search-chats"
+                class="search-input"
+                placeholder="⌕ Search chats"
+                oninput="renderHistory()"
+            >
+        </div>
 
-    <div class="disclaimer">Qiqxar can make mistakes. Verify important information.</div>
+        <div class="section-label">Your conversations</div>
+        <div id="history-list"></div>
 
-    <script>
-        const chatBox = document.getElementById('chat-box');
-        const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const micBtn = document.getElementById('micBtn');
-        let history = [];
-        let recognition = null;
-        let isRecording = false;
-        let shouldAutoSend = false;
+        <div class="sidebar-bottom">
+            <button class="profile-button" onclick="toggleSettings()">
+                <span class="profile-avatar">Q</span>
+                <span>
+                    <strong style="font-size:13px">Qiqxar</strong><br>
+                    <span style="font-size:11px;color:var(--muted)">Settings</span>
+                </span>
+                <span style="margin-left:auto;color:var(--muted)">⚙</span>
+            </button>
+        </div>
 
-        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+    </aside>
 
-        function toggleMic() {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                alert("Speech recognition is not supported on this browser.");
-                return;
-            }
+    <!-- MAIN -->
 
-            if (isRecording) {
-                recognition.stop();
-                return;
-            }
+    <main class="main">
 
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-            shouldAutoSend = false;
+        <header class="topbar">
 
-            recognition.onstart = function() {
-                isRecording = true;
-                micBtn.classList.add('recording');
-            };
+            <div class="top-left">
+                <button class="small-btn" onclick="toggleSidebar()" title="Menu">☰</button>
+                <span class="top-title">Qiqxar</span>
+                <span class="status-label">AI Assistant</span>
+            </div>
 
-            recognition.onresult = function(event) {
-                const speechResult = event.results[0][0].transcript;
-                userInput.value = speechResult;
-                shouldAutoSend = true;
-            };
+            <div class="top-right">
+                <button class="small-btn" onclick="exportChat()" title="Export conversation">↥</button>
+                <button class="small-btn" onclick="newChat()" title="New conversation">＋</button>
+            </div>
 
-            recognition.onerror = function(event) {
-                console.error("Speech recognition error:", event.error);
-                shouldAutoSend = false;
-                stopMicState();
-            };
+        </header>
 
-            recognition.onend = function() {
-                stopMicState();
-                if (shouldAutoSend && userInput.value.trim() !== '') {
-                    shouldAutoSend = false;
-                    sendMessage();
-                }
-            };
+        <section class="chat-container" id="chat-container">
+            <div class="chat-column" id="chat-box">
 
-            recognition.start();
+                <div id="welcome-screen">
+                    <div class="welcome-title">
+                        <span class="gradient-text">Hello.</span>
+                        What would you like to explore?
+                    </div>
+
+                    <div class="welcome-subtitle">
+                        Information without noise.
+                    </div>
+
+                    <div class="suggestions">
+
+                        <button class="suggestion"
+                            onclick="useSuggestion('Explain artificial intelligence in simple language.')">
+                            <strong>Understand something</strong>
+                            Get a clear explanation of a difficult topic.
+                        </button>
+
+                        <button class="suggestion"
+                            onclick="useSuggestion('Help me compare two different ideas objectively.')">
+                            <strong>Compare ideas</strong>
+                            Examine differences and similarities.
+                        </button>
+
+                        <button class="suggestion"
+                            onclick="useSuggestion('Help me research a question and identify reliable evidence.')">
+                            <strong>Research a topic</strong>
+                            Explore information and evidence.
+                        </button>
+
+                        <button class="suggestion"
+                            onclick="useSuggestion('Help me solve a problem step by step.')">
+                            <strong>Solve a problem</strong>
+                            Work through a problem step by step.
+                        </button>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- COMPOSER -->
+
+        <div class="composer-area">
+
+            <div class="composer-inner">
+
+                <div class="composer">
+
+                    <textarea
+                        id="user-input"
+                        rows="1"
+                        placeholder="Message Qiqxar..."
+                        onkeydown="handleKeyDown(event)"
+                    ></textarea>
+
+                    <button
+                        id="mic-btn"
+                        class="composer-btn"
+                        onclick="toggleMic()"
+                        title="Voice input"
+                    >🎙</button>
+
+                    <button
+                        id="send-btn"
+                        class="composer-btn"
+                        onclick="sendMessage()"
+                        title="Send message"
+                    >↑</button>
+
+                </div>
+
+                <div class="disclaimer">
+                    Qiqxar can make mistakes. Verify important information.
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- SETTINGS MENU -->
+
+        <div class="popup" id="settings-popup">
+            <button onclick="showAbout()">About Qiqxar</button>
+            <button onclick="exportChat()">Export current chat</button>
+            <button onclick="clearSavedChats()">Clear saved conversations</button>
+        </div>
+
+    </main>
+
+</div>
+
+<script>
+
+/* ------------------------------------------------
+   APPLICATION STATE
+------------------------------------------------ */
+
+const chatBox = document.getElementById("chat-box");
+const chatContainer = document.getElementById("chat-container");
+const input = document.getElementById("user-input");
+const sendBtn = document.getElementById("send-btn");
+
+let conversations = [];
+let currentId = null;
+let recognition = null;
+let isRecording = false;
+let shouldAutoSend = false;
+let isSending = false;
+let lastQuestion = "";
+
+const STORAGE_KEY = "qiqxar_conversations_v1";
+
+
+/* ------------------------------------------------
+   LOCAL CONVERSATION STORAGE
+------------------------------------------------ */
+
+function loadConversations() {
+    try {
+        conversations = JSON.parse(
+            localStorage.getItem(STORAGE_KEY) || "[]"
+        );
+
+        if (!Array.isArray(conversations)) {
+            conversations = [];
+        }
+    } catch (e) {
+        conversations = [];
+    }
+
+    renderHistory();
+}
+
+function saveConversations() {
+    try {
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(conversations)
+        );
+    } catch (e) {
+        console.warn("Could not save conversations:", e);
+    }
+
+    renderHistory();
+}
+
+function currentConversation() {
+    return conversations.find(c => c.id === currentId);
+}
+
+function createConversation() {
+    const conversation = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2,7),
+        title: "New chat",
+        messages: [],
+        updated: Date.now()
+    };
+
+    conversations.unshift(conversation);
+    currentId = conversation.id;
+    saveConversations();
+
+    return conversation;
+}
+
+
+/* ------------------------------------------------
+   SIDEBAR AND CHAT HISTORY
+------------------------------------------------ */
+
+function toggleSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("mobile-overlay");
+
+    sidebar.classList.toggle("closed");
+
+    if (window.innerWidth <= 700) {
+        overlay.classList.toggle("visible", !sidebar.classList.contains("closed"));
+    }
+}
+
+function renderHistory() {
+    const list = document.getElementById("history-list");
+    const search = (
+        document.getElementById("search-chats")?.value || ""
+    ).toLowerCase();
+
+    list.innerHTML = "";
+
+    const filtered = conversations.filter(c =>
+        c.title.toLowerCase().includes(search) ||
+        c.messages.some(m => m.content.toLowerCase().includes(search))
+    );
+
+    filtered.forEach(conversation => {
+        const item = document.createElement("div");
+        item.className = "history-item";
+
+        if (conversation.id === currentId) {
+            item.classList.add("active");
         }
 
-        function stopMicState() {
-            isRecording = false;
-            micBtn.classList.remove('recording');
-        }
+        const open = document.createElement("button");
+        open.className = "history-open";
+        open.textContent = conversation.title;
+        open.onclick = () => openConversation(conversation.id);
 
-        async function sendMessage() {
-            if (isRecording && recognition) {
-                recognition.stop();
-                return;
+        const menu = document.createElement("button");
+        menu.className = "history-menu";
+        menu.textContent = "···";
+        menu.title = "Conversation options";
+        menu.onclick = e => {
+            e.stopPropagation();
+            showHistoryMenu(conversation.id, menu);
+        };
+
+        item.appendChild(open);
+        item.appendChild(menu);
+        list.appendChild(item);
+    });
+}
+
+function showHistoryMenu(id, button) {
+    const popup = document.getElementById("history-popup");
+
+    if (popup) popup.remove();
+
+    const menu = document.createElement("div");
+    menu.id = "history-popup";
+    menu.className = "popup open";
+
+    const rename = document.createElement("button");
+    rename.textContent = "Rename conversation";
+    rename.onclick = () => {
+        const conversation = conversations.find(c => c.id === id);
+        if (!conversation) return;
+
+        const title = prompt("Conversation name:", conversation.title);
+
+        if (title && title.trim()) {
+            conversation.title = title.trim();
+            saveConversations();
+        }
+        menu.remove();
+    };
+
+    const remove = document.createElement("button");
+    remove.textContent = "Delete conversation";
+    remove.onclick = () => {
+        if (confirm("Delete this conversation?")) {
+            conversations = conversations.filter(c => c.id !== id);
+
+            if (currentId === id) {
+                currentId = null;
+                showWelcome();
             }
 
-            const text = userInput.value.trim();
-            if (!text) return;
-            
-            appendMessage('user', text);
-            userInput.value = '';
-            sendBtn.disabled = true;
+            saveConversations();
+        }
+        menu.remove();
+    };
 
-            const typingId = 'typing-' + Date.now();
-            appendMessage('bot', '<em>Thinking...</em>', typingId, false);
+    menu.appendChild(rename);
+    menu.appendChild(remove);
 
+    button.parentElement.style.position = "relative";
+    button.parentElement.appendChild(menu);
+}
+
+function openConversation(id) {
+    const conversation = conversations.find(c => c.id === id);
+    if (!conversation) return;
+
+    currentId = id;
+    chatBox.innerHTML = "";
+
+    conversation.messages.forEach(message => {
+        if (message.role === "user") {
+            appendUserMessage(message.content);
+        } else {
+            appendBotMessage(message.content, false);
+        }
+    });
+
+    renderHistory();
+    closeSidebarOnMobile();
+    scrollToBottom();
+}
+
+function closeSidebarOnMobile() {
+    if (window.innerWidth <= 700) {
+        document.getElementById("sidebar").classList.add("closed");
+        document.getElementById("mobile-overlay").classList.remove("visible");
+    }
+}
+
+function newChat() {
+    if (isSending) return;
+
+    currentId = null;
+    lastQuestion = "";
+    chatBox.innerHTML = "";
+    showWelcome();
+    renderHistory();
+    closeSidebarOnMobile();
+    input.focus();
+}
+
+function showWelcome() {
+    chatBox.innerHTML = `
+        <div id="welcome-screen">
+            <div class="welcome-title">
+                <span class="gradient-text">Hello.</span>
+                What would you like to explore?
+            </div>
+            <div class="welcome-subtitle">
+                Information without noise.
+            </div>
+            <div class="suggestions">
+                <button class="suggestion"
+                    onclick="useSuggestion('Explain artificial intelligence in simple language.')">
+                    <strong>Understand something</strong>
+                    Get a clear explanation of a difficult topic.
+                </button>
+                <button class="suggestion"
+                    onclick="useSuggestion('Help me compare two different ideas objectively.')">
+                    <strong>Compare ideas</strong>
+                    Examine differences and similarities.
+                </button>
+                <button class="suggestion"
+                    onclick="useSuggestion('Help me research a question and identify reliable evidence.')">
+                    <strong>Research a topic</strong>
+                    Explore information and evidence.
+                </button>
+                <button class="suggestion"
+                    onclick="useSuggestion('Help me solve a problem step by step.')">
+                    <strong>Solve a problem</strong>
+                    Work through a problem step by step.
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+
+/* ------------------------------------------------
+   SETTINGS
+------------------------------------------------ */
+
+function toggleSettings() {
+    document.getElementById("settings-popup").classList.toggle("open");
+}
+
+function showAbout() {
+    alert(
+        "Qiqxar\nInformation Without Noise.\n\n" +
+        "An AI assistant designed to provide clear information, " +
+        "with verification capabilities planned for future development."
+    );
+
+    document.getElementById("settings-popup").classList.remove("open");
+}
+
+function clearSavedChats() {
+    if (!confirm("Delete all saved conversations from this browser?")) {
+        return;
+    }
+
+    conversations = [];
+    currentId = null;
+    saveConversations();
+    showWelcome();
+
+    document.getElementById("settings-popup").classList.remove("open");
+}
+
+
+/* ------------------------------------------------
+   MESSAGE INPUT
+------------------------------------------------ */
+
+function handleKeyDown(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+    }
+}
+
+document.addEventListener("input", event => {
+    if (event.target.id === "user-input") {
+        event.target.style.height = "auto";
+        event.target.style.height =
+            Math.min(event.target.scrollHeight, 160) + "px";
+    }
+});
+
+function useSuggestion(text) {
+    input.value = text;
+    sendMessage();
+}
+
+function scrollToBottom() {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+
+/* ------------------------------------------------
+   MESSAGE DISPLAY
+------------------------------------------------ */
+
+function appendUserMessage(text) {
+    const row = document.createElement("div");
+    row.className = "user-row";
+
+    const bubble = document.createElement("div");
+    bubble.className = "user-bubble";
+    bubble.textContent = text;
+
+    row.appendChild(bubble);
+    chatBox.appendChild(row);
+
+    scrollToBottom();
+}
+
+function safeMarkdown(text) {
+    if (typeof marked !== "undefined" && marked.parse) {
+        const html = marked.parse(text);
+
+        if (typeof DOMPurify !== "undefined") {
+            return DOMPurify.sanitize(html);
+        }
+    }
+
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML.replace(/\n/g, "<br>");
+}
+
+function appendBotMessage(text, addActions = true) {
+    const row = document.createElement("div");
+    row.className = "bot-row";
+
+    const main = document.createElement("div");
+    main.className = "bot-main";
+
+    const icon = document.createElement("div");
+    icon.className = "bot-icon";
+    icon.textContent = "Q";
+
+    const content = document.createElement("div");
+    content.className = "bot-content";
+    content.innerHTML = safeMarkdown(text);
+
+    main.appendChild(icon);
+    main.appendChild(content);
+    row.appendChild(main);
+
+    if (addActions) {
+        attachBotActions(row, text);
+    }
+
+    chatBox.appendChild(row);
+    scrollToBottom();
+
+    return content;
+}
+
+
+/* ------------------------------------------------
+   RESPONSE ACTIONS
+------------------------------------------------ */
+
+function attachBotActions(row, text) {
+    const actions = document.createElement("div");
+    actions.className = "bot-actions";
+
+    function addButton(label, action) {
+        const button = document.createElement("button");
+        button.className = "action-btn";
+        button.textContent = label;
+        button.onclick = action;
+        actions.appendChild(button);
+        return button;
+    }
+
+    addButton("📋 Copy", async function() {
+        try {
+            await navigator.clipboard.writeText(text);
+            this.textContent = "✓ Copied";
+            setTimeout(() => this.textContent = "📋 Copy", 1500);
+        } catch (e) {
+            alert("Copy is unavailable in this browser.");
+        }
+    });
+
+    addButton("🔊 Read aloud", function() {
+        if (!("speechSynthesis" in window)) {
+            alert("Read aloud is not supported in this browser.");
+            return;
+        }
+
+        speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        speechSynthesis.speak(utterance);
+    });
+
+    addButton("↻ Regenerate", function() {
+        if (lastQuestion && !isSending) {
+            input.value = lastQuestion;
+            sendMessage(true);
+        }
+    });
+
+    addButton("👍", function() {
+        this.classList.toggle("active");
+        const other = actions.querySelector(".negative");
+        if (other) other.classList.remove("active");
+        this.classList.add("positive");
+    }).classList.add("positive");
+
+    addButton("👎", function() {
+        this.classList.toggle("active");
+        const other = actions.querySelector(".positive");
+        if (other) other.classList.remove("active");
+        this.classList.add("negative");
+    }).classList.add("negative");
+
+    row.appendChild(actions);
+}
+
+
+/* ------------------------------------------------
+   CHAT REQUEST AND STREAMING
+------------------------------------------------ */
+
+async function sendMessage(regenerate = false) {
+    if (isSending) return;
+
+    if (isRecording && recognition) {
+        recognition.stop();
+        return;
+    }
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    if (!currentId) {
+        createConversation();
+    }
+
+    const conversation = currentConversation();
+    if (!conversation) return;
+
+    if (!regenerate) {
+        lastQuestion = text;
+
+        if (conversation.messages.length === 0) {
+            conversation.title = text.length > 35
+                ? text.slice(0, 35) + "..."
+                : text;
+        }
+
+        conversation.messages.push({
+            role: "user",
+            content: text
+        });
+
+        appendUserMessage(text);
+    }
+
+    const requestHistory = conversation.messages.slice(0, -1);
+
+    input.value = "";
+    input.style.height = "auto";
+
+    isSending = true;
+    sendBtn.disabled = true;
+
+    const row = document.createElement("div");
+    row.className = "bot-row";
+
+    const main = document.createElement("div");
+    main.className = "bot-main";
+
+    const icon = document.createElement("div");
+    icon.className = "bot-icon";
+    icon.textContent = "Q";
+
+    const content = document.createElement("div");
+    content.className = "bot-content";
+    content.innerHTML = '<span class="thinking">Thinking...</span>';
+
+    main.appendChild(icon);
+    main.appendChild(content);
+    row.appendChild(main);
+    chatBox.appendChild(row);
+
+    scrollToBottom();
+
+    let fullText = "";
+
+    try {
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                question: text,
+                history: requestHistory.slice(-20)
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+
+            throw new Error(
+                errorData.detail || "Server communication failed."
+            );
+        }
+
+        if (!response.body) {
+            throw new Error("The server did not return a response stream.");
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let streamError = null;
+
+        while (true) {
+            const result = await reader.read();
+
+            if (result.done) break;
+
+            buffer += decoder.decode(result.value, {stream: true});
+
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+
+                const dataStr = line.slice(6);
+
+                if (dataStr === "[DONE]") continue;
+
+                try {
+                    const data = JSON.parse(dataStr);
+
+                    if (data.text) {
+                        fullText += data.text;
+                        content.innerHTML = safeMarkdown(fullText);
+                        scrollToBottom();
+                    }
+
+                    if (data.error) {
+                        streamError = data.error + ": " +
+                            (data.detail || "");
+                    }
+
+                } catch (e) {}
+            }
+        }
+
+        if (buffer.startsWith("data: ")) {
             try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        question: text, 
-                        history: history 
-                    })
-                });
+                const data = JSON.parse(buffer.slice(6));
 
-                document.getElementById(typingId)?.closest('.message-wrapper').remove();
-                const botMsgId = 'bot-' + Date.now();
-                appendMessage('bot', '', botMsgId, true);
-                const botDiv = document.getElementById(botMsgId);
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullText = "";
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const dataStr = line.slice(6);
-                            if (dataStr === '[DONE]') break;
-                            try {
-                                const data = JSON.parse(dataStr);
-                                if (data.text) {
-                                    fullText += data.text;
-                                    botDiv.innerHTML = `<strong>Qiqxar:</strong> ${fullText}`;
-                                    chatBox.scrollTop = chatBox.scrollHeight;
-                                } else if (data.error) {
-                                    botDiv.innerHTML = `<strong>Error:</strong> ${data.error}`;
-                                }
-                            } catch (e) {}
-                        }
-                    }
+                if (data.text) {
+                    fullText += data.text;
                 }
-                
-                history.push({ role: "user", content: text });
-                history.push({ role: "assistant", content: fullText });
 
-            } catch (error) {
-                document.getElementById(typingId)?.closest('.message-wrapper')?.remove();
-                appendMessage('bot', '<strong>System Error:</strong> Could not reach the server.', null, false);
-            }
-            sendBtn.disabled = false;
-            userInput.focus();
+                if (data.error) {
+                    streamError = data.error + ": " +
+                        (data.detail || "");
+                }
+            } catch (e) {}
         }
 
-        function appendMessage(sender, text, id = null, showActions = false) {
-            const wrapper = document.createElement('div');
-            wrapper.className = `message-wrapper ${sender}`;
-
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message`;
-            if (id) msgDiv.id = id;
-            msgDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'Qiqxar'}</strong> ${text}`;
-            wrapper.appendChild(msgDiv);
-
-            if (showActions && sender === 'bot') {
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'bot-actions';
-                
-                // Copy Button
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'action-icon-btn';
-                copyBtn.innerHTML = '📋 Copy';
-                copyBtn.onclick = () => {
-                    const cleanText = msgDiv.innerText.replace('Qiqxar:', '').trim();
-                    navigator.clipboard.writeText(cleanText);
-                    copyBtn.innerHTML = '✓ Copied';
-                    setTimeout(() => copyBtn.innerHTML = '📋 Copy', 2000);
-                };
-
-                // Speak Button (Text-to-Speech)
-                const speakBtn = document.createElement('button');
-                speakBtn.className = 'action-icon-btn';
-                speakBtn.innerHTML = '🔊 Speak';
-                speakBtn.onclick = () => {
-                    if ('speechSynthesis' in window) {
-                        window.speechSynthesis.cancel();
-                        const cleanText = msgDiv.innerText.replace('Qiqxar:', '').trim();
-                        const utterance = new SpeechSynthesisUtterance(cleanText);
-                        window.speechSynthesis.speak(utterance);
-                    } else {
-                        alert('Text-to-speech not supported on this browser.');
-                    }
-                };
-
-                // Thumbs Up
-                const upBtn = document.createElement('button');
-                upBtn.className = 'action-icon-btn';
-                upBtn.innerHTML = '👍';
-                upBtn.onclick = () => {
-                    upBtn.classList.toggle('active');
-                    downBtn.classList.remove('active');
-                };
-
-                // Thumbs Down
-                const downBtn = document.createElement('button');
-                downBtn.className = 'action-icon-btn';
-                downBtn.innerHTML = '👎';
-                downBtn.onclick = () => {
-                    downBtn.classList.toggle('active');
-                    upBtn.classList.remove('active');
-                };
-
-                actionsDiv.appendChild(copyBtn);
-                actionsDiv.appendChild(speakBtn);
-                actionsDiv.appendChild(upBtn);
-                actionsDiv.appendChild(downBtn);
-                wrapper.appendChild(actionsDiv);
-            }
-
-            chatBox.appendChild(wrapper);
-            chatBox.scrollTop = chatBox.scrollHeight;
+        if (streamError) {
+            throw new Error(streamError);
         }
 
-        function exportChat() {
-            if (history.length === 0) {
-                alert("No conversation history to export yet.");
-                return;
-            }
-            let transcript = "Qiqxar Chat Transcript\n=====================\n\n";
-            history.forEach(item => {
-                const role = item.role === 'user' ? 'You' : 'Qiqxar';
-                transcript += `${role}: ${item.content}\n\n`;
-            });
-
-            const blob = new Blob([transcript], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Qiqxar-Chat-${new Date().toISOString().slice(0,10)}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+        if (!fullText) {
+            throw new Error("The AI returned an empty response.");
         }
-    </script>
+
+        content.innerHTML = safeMarkdown(fullText);
+
+        conversation.messages.push({
+            role: "assistant",
+            content: fullText
+        });
+
+        conversation.updated = Date.now();
+        saveConversations();
+
+        attachBotActions(row, fullText);
+
+    } catch (error) {
+        content.textContent = "Connection error: " + error.message;
+
+        if (!regenerate) {
+            conversation.messages.pop();
+        }
+
+        saveConversations();
+
+    } finally {
+        isSending = false;
+        sendBtn.disabled = false;
+        input.focus();
+        scrollToBottom();
+    }
+}
+
+
+/* ------------------------------------------------
+   VOICE INPUT
+------------------------------------------------ */
+
+function initializeSpeech() {
+    const SpeechAPI =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    if (!SpeechAPI) return;
+
+    recognition = new SpeechAPI();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+        isRecording = true;
+        shouldAutoSend = false;
+
+        document.getElementById("mic-btn").classList.add("recording");
+        input.placeholder = "Listening...";
+    };
+
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+
+        input.value = transcript;
+        input.style.height = "auto";
+        input.style.height =
+            Math.min(input.scrollHeight, 160) + "px";
+
+        shouldAutoSend = true;
+    };
+
+    recognition.onerror = function(event) {
+        console.error("Speech recognition error:", event.error);
+        shouldAutoSend = false;
+        stopMicUI();
+    };
+
+    recognition.onend = function() {
+        stopMicUI();
+
+        if (shouldAutoSend && input.value.trim()) {
+            shouldAutoSend = false;
+            sendMessage();
+        }
+    };
+}
+
+function stopMicUI() {
+    isRecording = false;
+
+    document.getElementById("mic-btn").classList.remove("recording");
+    input.placeholder = "Message Qiqxar...";
+}
+
+function toggleMic() {
+    if (!recognition) {
+        alert("Voice recognition is not supported in this browser.");
+        return;
+    }
+
+    if (isRecording) {
+        recognition.stop();
+        return;
+    }
+
+    try {
+        shouldAutoSend = false;
+        recognition.start();
+    } catch (e) {
+        console.error("Could not start microphone:", e);
+    }
+}
+
+
+/* ------------------------------------------------
+   EXPORT
+------------------------------------------------ */
+
+function exportChat() {
+    const conversation = currentConversation();
+
+    if (!conversation || !conversation.messages.length) {
+        alert("There is no conversation to export.");
+        return;
+    }
+
+    let transcript = "Qiqxar Conversation\n\n";
+
+    conversation.messages.forEach(message => {
+        transcript += (
+            (message.role === "user" ? "You" : "Qiqxar") +
+            ":\n" + message.content + "\n\n"
+        );
+    });
+
+    const blob = new Blob([transcript], {
+        type: "text/plain;charset=utf-8"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download =
+        "Qiqxar-" + new Date().toISOString().slice(0,10) + ".txt";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+}
+
+
+/* ------------------------------------------------
+   CLOSE MENUS
+------------------------------------------------ */
+
+document.addEventListener("click", function(event) {
+    const settings = document.getElementById("settings-popup");
+
+    if (
+        settings.classList.contains("open") &&
+        !settings.contains(event.target) &&
+        !event.target.closest(".profile-button")
+    ) {
+        settings.classList.remove("open");
+    }
+
+    const historyMenu = document.getElementById("history-popup");
+
+    if (
+        historyMenu &&
+        !historyMenu.contains(event.target) &&
+        !event.target.closest(".history-menu")
+    ) {
+        historyMenu.remove();
+    }
+});
+
+
+/* ------------------------------------------------
+   START APPLICATION
+------------------------------------------------ */
+
+loadConversations();
+initializeSpeech();
+
+</script>
+
 </body>
 </html>
