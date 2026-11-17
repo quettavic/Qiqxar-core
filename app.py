@@ -1,4 +1,3 @@
-
 import json
 import os
 import logging
@@ -57,7 +56,7 @@ async def home():
 # AI SYSTEM INSTRUCTIONS
 # --------------------------------------------------
 
-SYSTEM_PROMPT = """You are Qiqxar, an ethical AI assistant.
+BASE_SYSTEM_PROMPT = """You are Qiqxar, an ethical AI assistant.
 
 1. Plain-Language Closure:
 Do not use jargon. If a complex term is necessary,
@@ -108,6 +107,8 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     question: str
     history: list[ChatMessage] = Field(default_factory=list)
+    length: str = Field(default="short")
+    mode: str = Field(default="Tutor Mode")
 
 
 # --------------------------------------------------
@@ -148,6 +149,21 @@ async def chat(payload: ChatRequest):
             detail="Please enter a question."
         )
 
+    # Dynamic depth/length & mode prompt injection
+    length_instruction = {
+        "short": "Keep the answer concise and direct.",
+        "medium": "Provide a balanced, moderately detailed explanation with key bullet points.",
+        "long": "Provide an in-depth, thorough breakdown with detailed key points, context, and verification steps."
+    }.get(payload.length, "Keep the answer concise.")
+
+    mode_instruction = ""
+    if payload.mode == "Tutor Mode":
+        mode_instruction = "Tutor Mode is active: Break the explanation down progressively and encourage the user to grasp the core concept step by step."
+    elif payload.mode != "Standard":
+        mode_instruction = f"Active mode is '{payload.mode}': Adapt your tone and focus to fit this specific mode."
+
+    system_prompt = f"{BASE_SYSTEM_PROMPT}\n\nLength Preference: {length_instruction}\n{mode_instruction}"
+
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
@@ -156,7 +172,7 @@ async def chat(payload: ChatRequest):
     messages = [
         {
             "role": "system",
-            "content": SYSTEM_PROMPT
+            "content": system_prompt
         }
     ]
 
