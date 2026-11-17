@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#212121">
-<title>Qiqxar — Information Without Noise</title>
+<title>Qiqxar — Less noise .... more information..</title>
+<meta name="description" content="Qiqxar — Less noise .... more information..">
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
@@ -44,11 +45,12 @@ button { cursor: pointer; color: inherit; }
     display: flex; flex-direction: column;
     padding: 16px 12px;
     transition: margin .25s; z-index: 20;
+    overflow-y: auto;
 }
 .sidebar.closed { margin-left: -270px; }
 .sidebar-top {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 3px 5px 22px;
+    padding: 3px 5px 18px;
 }
 .brand {
     display: flex; align-items: center; gap: 10px;
@@ -67,21 +69,70 @@ button { cursor: pointer; color: inherit; }
 .small-btn:hover { background: var(--surface-hover); color: var(--text); }
 .sidebar-action {
     width: 100%; display: flex; align-items: center; gap: 12px;
-    border: 0; background: transparent; padding: 12px;
+    border: 0; background: transparent; padding: 11px 12px;
     border-radius: 10px; text-align: left; font-size: 14px; color: var(--text);
 }
 .sidebar-action:hover { background: var(--surface-hover); }
 .sidebar-action .symbol { width: 20px; text-align: center; font-size: 17px; }
-.search-wrap { margin: 7px 0 20px; }
+
+/* MODES & ADVANCED IN SIDEBAR (from Meta version) */
+.mode-section {
+    margin: 10px 0;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.mode-btn {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 9px 12px;
+    border-radius: 999px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--text);
+    transition: background .15s, border-color .15s;
+}
+.mode-btn:hover { background: var(--surface-hover); }
+.mode-btn.active {
+    background: var(--accent);
+    color: #111;
+    border-color: var(--accent);
+    font-weight: 600;
+}
+details.advance-box {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 9px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    background: rgba(255,255,255,.02);
+    margin-top: 4px;
+}
+details.advance-box summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text);
+    font-size: 13px;
+}
+details.advance-box p {
+    margin-top: 8px;
+    line-height: 1.5;
+}
+
+.search-wrap { margin: 12px 0 12px; }
 .search-input {
-    width: 100%; padding: 11px 12px;
+    width: 100%; padding: 10px 12px;
     border: 1px solid var(--border); border-radius: 9px;
     background: var(--surface); color: var(--text);
     outline: none; font-size: 13px;
 }
 .search-input:focus { border-color: var(--accent); }
-.section-label { color: var(--muted); font-size: 12px; padding: 8px 10px; }
-#history-list { overflow-y: auto; flex: 1; }
+.section-label { color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 10px; }
+#history-list { overflow-y: auto; flex: 1; min-height: 80px; }
 .history-item {
     display: flex; align-items: center; gap: 4px;
     padding: 2px; border-radius: 8px;
@@ -89,7 +140,7 @@ button { cursor: pointer; color: inherit; }
 .history-item.active, .history-item:hover { background: var(--surface-hover); }
 .history-open {
     flex: 1; min-width: 0; background: transparent; border: 0;
-    padding: 10px; text-align: left; font-size: 13px; color: var(--text);
+    padding: 9px 10px; text-align: left; font-size: 13px; color: var(--text);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .history-menu {
@@ -121,8 +172,9 @@ button { cursor: pointer; color: inherit; }
 .top-left, .top-right { display: flex; align-items: center; gap: 10px; }
 .top-title { font-size: 15px; font-weight: 550; }
 .status-label {
-    font-size: 11px; color: var(--muted);
-    border: 1px solid var(--border); border-radius: 20px; padding: 5px 9px;
+    font-size: 11px; color: var(--accent);
+    border: 1px solid rgba(168,199,250,.3); border-radius: 20px; padding: 5px 10px;
+    background: rgba(168,199,250,.08);
 }
 .chat-container {
     flex: 1; overflow-y: auto; padding: 28px 20px 35px;
@@ -133,19 +185,21 @@ button { cursor: pointer; color: inherit; }
     display: flex; flex-direction: column; gap: 28px;
 }
 
-/* WELCOME */
-#welcome-screen { margin: auto 0; padding: 8vh 0 4vh; }
+/* WELCOME (Merged Infinity Logo + Tagline + Suggestion Cards) */
+#welcome-screen { margin: auto 0; padding: 4vh 0 2vh; text-align: center; }
+.welcome-logo-svg { width: 88px; height: 54px; margin-bottom: 10px; }
 .welcome-title {
-    font-size: clamp(30px,5vw,42px); font-weight: 550;
-    letter-spacing: -1.5px; margin-bottom: 10px;
+    font-size: clamp(32px,5vw,44px); font-weight: 600;
+    letter-spacing: -1.5px; margin-bottom: 8px;
 }
 .gradient-text {
     background: linear-gradient(100deg,#8ab4f8,#c58af9,#e69aab);
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.welcome-subtitle { color: var(--muted); font-size: 20px; margin-bottom: 32px; }
+.welcome-subtitle { color: var(--muted); font-size: 18px; margin-bottom: 28px; }
 .suggestions {
     display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px;
+    text-align: left;
 }
 .suggestion {
     background: var(--surface); border: 1px solid var(--border);
@@ -200,14 +254,44 @@ button { cursor: pointer; color: inherit; }
 @keyframes pulse { 50% { opacity: .4; } }
 .bot-actions { display: flex; gap: 7px; margin-left: 40px; flex-wrap: wrap; }
 .action-btn {
-    background: transparent; border: 0; color: var(--muted);
-    font-size: 12px; padding: 6px 8px; border-radius: 7px;
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    font-size: 12px; padding: 5px 10px; border-radius: 999px;
 }
-.action-btn:hover, .action-btn.active { background: var(--surface-hover); color: var(--accent); }
+.action-btn:hover, .action-btn.active { background: var(--surface-hover); color: var(--accent); border-color: rgba(168,199,250,.3); }
+
+/* TOOLBAR (Short / Medium / Long Pills from Meta version) */
+.length-toolbar {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0 4px 10px;
+}
+.pill {
+    font-size: 12px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    transition: all .15s;
+}
+.pill:hover { background: var(--surface-hover); color: var(--text); }
+.pill.active {
+    background: var(--accent);
+    color: #111;
+    border-color: var(--accent);
+    font-weight: 600;
+}
+.mode-indicator {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: auto;
+}
 
 /* COMPOSER */
 .composer-area {
-    width: 100%; padding: 12px 20px 17px;
+    width: 100%; padding: 8px 20px 15px;
     background: var(--bg); flex-shrink: 0;
 }
 .composer-inner { width: 100%; max-width: 800px; margin: auto; }
@@ -236,7 +320,11 @@ button { cursor: pointer; color: inherit; }
 #send-btn:disabled { opacity: .35; cursor: not-allowed; }
 .disclaimer {
     font-size: 11px; text-align: center;
-    color: var(--muted); padding-top: 9px;
+    color: var(--muted); padding-top: 8px;
+}
+.mic-hint {
+    font-size: 11px; text-align: center;
+    color: #777; padding-top: 3px;
 }
 
 /* MENUS */
@@ -254,7 +342,6 @@ button { cursor: pointer; color: inherit; }
 }
 .popup button:hover { background: #454545; }
 #settings-popup { bottom: 70px; left: 12px; }
-#history-popup { right: 8px; top: 35px; }
 #mobile-overlay { display: none; }
 
 /* MOBILE */
@@ -271,12 +358,12 @@ button { cursor: pointer; color: inherit; }
     }
     .topbar { padding: 0 12px; }
     .chat-container { padding: 20px 15px; }
-    .composer-area { padding: 9px 10px 13px; }
+    .composer-area { padding: 8px 10px 12px; }
     .suggestions { grid-template-columns: 1fr; }
     .welcome-title { font-size: 32px; }
-    .welcome-subtitle { font-size: 17px; }
+    .welcome-subtitle { font-size: 16px; }
     .user-bubble { max-width: 90%; }
-    .status-label { display: none; }
+    .mic-hint { display: none; }
 }
 </style>
 </head>
@@ -301,6 +388,19 @@ button { cursor: pointer; color: inherit; }
             <span class="symbol">＋</span>
             New chat
         </button>
+
+        <!-- MODES & ADVANCE (Merged from Meta AI version) -->
+        <div class="mode-section">
+            <div class="section-label">Modes</div>
+            <button class="mode-btn" id="btnStandard" onclick="setMode('Standard')">Standard Mode</button>
+            <button class="mode-btn active" id="btnTutor" onclick="setMode('Tutor Mode')">Tutor Mode</button>
+            <button class="mode-btn" id="btnCustomMode" onclick="createMode()">+ Create Mode</button>
+
+            <details class="advance-box">
+                <summary>Advance</summary>
+                <p>Agentic capacities for regular and frequent users. Qiqxar works inside your permissions and asks before anything that costs money or creates something permanent.</p>
+            </details>
+        </div>
 
         <div class="search-wrap">
             <input
@@ -332,7 +432,7 @@ button { cursor: pointer; color: inherit; }
             <div class="top-left">
                 <button class="small-btn" onclick="toggleSidebar()" title="Menu">☰</button>
                 <span class="top-title">Qiqxar</span>
-                <span class="status-label">AI Assistant</span>
+                <span class="status-label" id="top-mode-badge">Tutor Mode • Short</span>
             </div>
             <div class="top-right">
                 <button class="small-btn" onclick="exportChat()" title="Export conversation">↥</button>
@@ -343,12 +443,14 @@ button { cursor: pointer; color: inherit; }
         <section class="chat-container" id="chat-container">
             <div class="chat-column" id="chat-box">
                 <div id="welcome-screen">
+                    <svg class="welcome-logo-svg" viewBox="0 0 100 60" aria-label="Qiqxar logo">
+                        <path d="M50 30 C35 5 5 5 5 30 C5 55 35 55 50 30 C65 5 95 5 95 30 C95 55 65 55 50 30 Z" fill="none" stroke="#a8c7fa" stroke-width="5" stroke-linecap="round"></path>
+                    </svg>
                     <div class="welcome-title">
-                        <span class="gradient-text">Hello.</span>
-                        What would you like to explore?
+                        <span class="gradient-text">Qiqxar</span>
                     </div>
                     <div class="welcome-subtitle">
-                        Information without noise.
+                        Less noise .... more information..
                     </div>
                     <div class="suggestions">
                         <button class="suggestion"
@@ -376,14 +478,21 @@ button { cursor: pointer; color: inherit; }
             </div>
         </section>
 
-        <!-- COMPOSER -->
+        <!-- COMPOSER & LENGTH PILLS -->
         <div class="composer-area">
             <div class="composer-inner">
+                <div class="length-toolbar">
+                    <button class="pill active" data-len="short" onclick="setLen('short', this)">Short</button>
+                    <button class="pill" data-len="medium" onclick="setLen('medium', this)">Medium</button>
+                    <button class="pill" data-len="long" onclick="setLen('long', this)">Long</button>
+                    <span class="mode-indicator" id="modeLabel">Tutor Mode • Short</span>
+                </div>
+
                 <div class="composer">
                     <textarea
                         id="user-input"
                         rows="1"
-                        placeholder="Message Qiqxar..."
+                        placeholder="Ask anything..."
                         onkeydown="handleKeyDown(event)"
                     ></textarea>
 
@@ -409,7 +518,10 @@ button { cursor: pointer; color: inherit; }
                 </div>
 
                 <div class="disclaimer">
-                    Qiqxar can make mistakes. Verify important information.
+                    AI can make mistakes. Please do your own due diligence.
+                </div>
+                <div class="mic-hint">
+                    Mic commands: say “send it” to send, “delete” to remove last word, “correction + word” to replace it.
                 </div>
             </div>
         </div>
@@ -437,10 +549,57 @@ let conversations = [];
 let currentId = null;
 let recognition = null;
 let isRecording = false;
-let shouldAutoSend = false;
 let isSending = false;
 
+// Merged Mode & Length state
+let currentLen = "short";
+let currentMode = "Tutor Mode";
+
 const STORAGE_KEY = "qiqxar_conversations_v1";
+
+/* ------------------------------------------------
+   MODE & LENGTH CONTROLS (Merged from Meta version)
+------------------------------------------------ */
+function updateModeLabels() {
+    const capLen = currentLen.charAt(0).toUpperCase() + currentLen.slice(1);
+    const labelText = `${currentMode} • ${capLen}`;
+    const modeLabel = document.getElementById("modeLabel");
+    const topBadge = document.getElementById("top-mode-badge");
+    if (modeLabel) modeLabel.textContent = labelText;
+    if (topBadge) topBadge.textContent = labelText;
+}
+
+function setLen(v, el) {
+    currentLen = v;
+    document.querySelectorAll(".pill").forEach(b => b.classList.remove("active"));
+    if (el) el.classList.add("active");
+    updateModeLabels();
+}
+
+function setMode(m) {
+    currentMode = m;
+    document.getElementById("btnStandard")?.classList.toggle("active", m === "Standard");
+    document.getElementById("btnTutor")?.classList.toggle("active", m === "Tutor Mode");
+    const customBtn = document.getElementById("btnCustomMode");
+    if (customBtn) {
+        if (m !== "Standard" && m !== "Tutor Mode") {
+            customBtn.textContent = m;
+            customBtn.classList.add("active");
+        } else {
+            customBtn.textContent = "+ Create Mode";
+            customBtn.classList.remove("active");
+        }
+    }
+    updateModeLabels();
+    if (window.innerWidth <= 700) toggleSidebar(false);
+}
+
+function createMode() {
+    const n = prompt("Name your custom mode (e.g., Builder Mode, Study Buddy, Direct Facts):");
+    if (n && n.trim()) {
+        setMode(n.trim());
+    }
+}
 
 /* ------------------------------------------------
    LOCAL CONVERSATION STORAGE
@@ -465,12 +624,14 @@ function newChat() {
     currentId = null;
     chatBox.innerHTML = `
         <div id="welcome-screen">
+            <svg class="welcome-logo-svg" viewBox="0 0 100 60" aria-label="Qiqxar logo">
+                <path d="M50 30 C35 5 5 5 5 30 C5 55 35 55 50 30 C65 5 95 5 95 30 C95 55 65 55 50 30 Z" fill="none" stroke="#a8c7fa" stroke-width="5" stroke-linecap="round"></path>
+            </svg>
             <div class="welcome-title">
-                <span class="gradient-text">Hello.</span>
-                What would you like to explore?
+                <span class="gradient-text">Qiqxar</span>
             </div>
             <div class="welcome-subtitle">
-                Information without noise.
+                Less noise .... more information..
             </div>
             <div class="suggestions">
                 <button class="suggestion" onclick="useSuggestion('Explain artificial intelligence in simple language.')">
@@ -686,15 +847,24 @@ function attachBotActions(botId, fullText) {
     downBtn.textContent = "👎";
     downBtn.onclick = () => { downBtn.classList.toggle("active"); upBtn.classList.remove("active"); };
 
+    // Sources / Verification reminder button (Merged from Meta version)
+    const srcBtn = document.createElement("button");
+    srcBtn.className = "action-btn";
+    srcBtn.textContent = "🔍 How to check";
+    srcBtn.onclick = () => {
+        alert("Verification Tip:\nCross-check key facts, numbers, or medical/technical claims with primary sources, peer-reviewed studies, or official documentation.");
+    };
+
     actions.appendChild(copyBtn);
     actions.appendChild(speakBtn);
     actions.appendChild(upBtn);
     actions.appendChild(downBtn);
+    actions.appendChild(srcBtn);
     row.appendChild(actions);
 }
 
 /* ------------------------------------------------
-   SEND MESSAGE
+   SEND MESSAGE (Sends question + length + mode to backend)
 ------------------------------------------------ */
 async function sendMessage() {
     if (isSending) return;
@@ -726,7 +896,12 @@ async function sendMessage() {
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question: text, history })
+            body: JSON.stringify({
+                question: text,
+                history: history,
+                length: currentLen,
+                mode: currentMode
+            })
         });
 
         if (!response.ok) {
@@ -795,23 +970,27 @@ function handleKeyDown(e) {
     }
 }
 
+function autoResizeInput() {
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 160) + "px";
+}
+
 document.addEventListener("input", (e) => {
     if (e.target && e.target.id === "user-input") {
-        e.target.style.height = "auto";
-        e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+        autoResizeInput();
     }
 });
 
 function useSuggestion(text) {
     if (!input) return;
     input.value = text;
-    input.style.height = "auto";
-    input.style.height = Math.min(input.scrollHeight, 160) + "px";
+    autoResizeInput();
     sendMessage();
 }
 
 /* ------------------------------------------------
-   VOICE INPUT
+   VOICE INPUT WITH SMART COMMANDS ("send it", "delete", "correction")
 ------------------------------------------------ */
 try {
     const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -825,23 +1004,42 @@ try {
         recognition.onstart = () => {
             isRecording = true;
             document.getElementById("mic-btn")?.classList.add("recording");
-            if (input) input.placeholder = "Listening…";
+            if (input) input.placeholder = "Listening… (say 'send it', 'delete', or 'correction + word')";
         };
         recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            if (input) {
-                input.value = text;
-                input.style.height = "auto";
-                input.style.height = Math.min(input.scrollHeight, 160) + "px";
+            const rawTranscript = event.results[0][0].transcript.trim();
+            const lower = rawTranscript.toLowerCase();
+            if (!input) return;
+
+            if (lower.includes("send it")) {
+                const cleaned = rawTranscript.replace(/send it/gi, "").trim();
+                if (cleaned) {
+                    input.value += (input.value ? " " : "") + cleaned;
+                }
+                autoResizeInput();
+                sendMessage();
+            } else if (lower === "delete" || lower === "delete last word") {
+                const words = input.value.trim().split(/\s+/).filter(Boolean);
+                words.pop();
+                input.value = words.join(" ") + (words.length ? " " : "");
+                autoResizeInput();
+            } else if (lower.startsWith("correction ")) {
+                const newWord = rawTranscript.slice(11).trim();
+                const words = input.value.trim().split(/\s+/).filter(Boolean);
+                if (words.length) {
+                    words[words.length - 1] = newWord;
+                } else {
+                    words.push(newWord);
+                }
+                input.value = words.join(" ") + " ";
+                autoResizeInput();
+            } else {
+                input.value += (input.value ? " " : "") + rawTranscript + " ";
+                autoResizeInput();
             }
-            shouldAutoSend = true;
         };
         recognition.onend = () => {
             stopMicUI();
-            if (shouldAutoSend && input && input.value.trim()) {
-                shouldAutoSend = false;
-                sendMessage();
-            }
         };
         recognition.onerror = () => stopMicUI();
     }
@@ -852,7 +1050,7 @@ try {
 function stopMicUI() {
     isRecording = false;
     document.getElementById("mic-btn")?.classList.remove("recording");
-    if (input) input.placeholder = "Message Qiqxar...";
+    if (input) input.placeholder = "Ask anything...";
 }
 
 function toggleMic() {
@@ -863,7 +1061,6 @@ function toggleMic() {
     if (isRecording) {
         try { recognition.stop(); } catch (e) {}
     } else {
-        shouldAutoSend = false;
         try { recognition.start(); } catch (e) {}
     }
 }
@@ -888,7 +1085,7 @@ function toggleSettings() {
 
 function showAbout() {
     toggleSettings();
-    alert("Qiqxar — Information without noise.\n\nAn ethical AI assistant focused on plain language, epistemic honesty, and complete technical steps when needed.");
+    alert("Qiqxar — Less noise .... more information..\n\nAn ethical AI assistant focused on plain language, epistemic honesty, and complete technical steps when needed.");
 }
 
 function clearSavedChats() {
@@ -935,6 +1132,7 @@ document.addEventListener("click", (e) => {
    INIT
 ------------------------------------------------ */
 loadConversations();
+updateModeLabels();
 </script>
 </body>
 </html>
